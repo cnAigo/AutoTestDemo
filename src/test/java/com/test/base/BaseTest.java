@@ -3,6 +3,7 @@ package com.test.base;
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.AriaRole;
 import com.microsoft.playwright.options.WaitForSelectorState;
+import com.microsoft.playwright.options.WaitUntilState;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.TestInstance;
@@ -21,10 +22,13 @@ public class BaseTest {
     @BeforeAll
     public void setup() {
         playwright = Playwright.create();
+
         browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
-                .setHeadless(false)
+                .setHeadless(true)
                 .setSlowMo(300));
-        context = browser.newContext(new Browser.NewContextOptions().setIgnoreHTTPSErrors(true));
+        context = browser.newContext(new Browser.NewContextOptions()
+                .setViewportSize(1920, 1080)
+                .setIgnoreHTTPSErrors(true)); // 必须在这里忽略 HTTPS 错误
         page = context.newPage();
 
         page.setDefaultTimeout(150000);
