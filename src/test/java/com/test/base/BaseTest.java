@@ -34,7 +34,7 @@ public class BaseTest {
         page.setDefaultTimeout(150000);
         page.setDefaultNavigationTimeout(30000);
 
-        page.navigate("https://192.168.0.222:8088/#/login", new Page.NavigateOptions()
+        page.navigate("https://127.0.0.1:8088/#/login", new Page.NavigateOptions()
                 .setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
         page.getByPlaceholder("请输入用户名").fill("zhangke");
         page.getByPlaceholder("请输入密码").fill("111111");
