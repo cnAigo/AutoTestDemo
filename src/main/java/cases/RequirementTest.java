@@ -1,11 +1,11 @@
-package com.test.cases;
+package cases;
 
+import base.BaseTest;
 import com.microsoft.playwright.APIResponse;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.AriaRole;
-import com.test.base.BaseTest;
-import com.test.pages.RequirementPage;
+import pages.RequirementPage;
 import org.junit.jupiter.api.*;
 import com.microsoft.playwright.options.RequestOptions;
 import com.google.gson.JsonArray;

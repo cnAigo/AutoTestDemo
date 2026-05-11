@@ -1,6 +1,6 @@
-package com.test.cases;
+package cases;
 
-import com.test.pages.RequirementPage;
+import pages.RequirementPage;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
