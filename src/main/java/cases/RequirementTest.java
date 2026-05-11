@@ -1,11 +1,11 @@
-package cases;
+package cases; // 必须和文件夹 src/main/java/cases 对应
 
-import base.BaseTest;
+import base.BaseTest; // 假设你的 BaseTest 在 base 包下
 import com.microsoft.playwright.APIResponse;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.AriaRole;
-import pages.RequirementPage;
+import pages.RequirementPage; // 确保这个 pages 包也在 src/main/java 下
 import org.junit.jupiter.api.*;
 import com.microsoft.playwright.options.RequestOptions;
 import com.google.gson.JsonArray;
@@ -17,6 +17,8 @@ import org.slf4j.LoggerFactory;
 
 // 继承 BaseTest，自动获得 setup() 和 teardown()
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+// 🌟 确保整个类的测试实例只创建一次，这样 @BeforeAll 才能正常工作
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class RequirementTest extends BaseTest {
 
     private RequirementPage reqPage;
@@ -47,7 +49,7 @@ public class RequirementTest extends BaseTest {
     @Test
     @Order(10)
     @DisplayName("UI测试 GNYL_012：根节点新增文件夹 (验证右键菜单入口)")
-    void test_GNYL_012_CreateFolder_UI() {
+    public void test_GNYL_012_CreateFolder_UI() {
         log.info("开始UI测试  GNYL_012 : 根节点新增文件夹 (验证右键菜单入口) ");
         reqPage.rightClickTreeNode(ROOT_NODE_NAME);
         reqPage.clickContextMenu("新建");

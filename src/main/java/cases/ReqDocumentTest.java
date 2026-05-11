@@ -1,16 +1,21 @@
 package cases;
 
 
+import base.BaseTest;
+import org.junit.jupiter.api.*;
 import pages.RequirementPage;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Order;
-import org.junit.jupiter.api.Test;
 
-public class ReqDocumentTest {
+// 🌟 就是漏了这关键的一行
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+public class ReqDocumentTest extends BaseTest {
 
 
     private RequirementPage reqPage;
 
+    @BeforeAll
+    public void initPage() {
+        reqPage = new RequirementPage(page);
+    }
 
     @Test
     @Order(45)
