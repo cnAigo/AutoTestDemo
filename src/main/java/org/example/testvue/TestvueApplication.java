@@ -36,23 +36,22 @@ public class TestvueApplication {
 
         // 5. 打印测试结果总结
         TestExecutionSummary summary = listener.getSummary();
-        System.out.println("\n📊 ====== 测试执行总结 ======");
+        System.out.println("\n ====== 测试执行总结 ======");
         System.out.println("总测试数: " + summary.getTestsFoundCount());
-        System.out.println("执行成功: " + summary.getTestsSucceededCount());
-        System.out.println("执行失败: " + summary.getTestsFailedCount());
-        // 🌟 新增：打印到底有多少被跳过/中断了
-        System.out.println("被跳过/中断: " + (summary.getTestsSkippedCount() + summary.getTestsAbortedCount()));
 
-        // 🌟 核心：如果有任何报错（包括打开浏览器失败），全部打印出来！
+        System.out.println("执行失败: " + summary.getTestsFailedCount());
+
+        System.out.println("被跳过/中断: " + (summary.getTestsSkippedCount() + summary.getTestsAbortedCount()));
+        System.out.println("执行成功: " + summary.getTestsSucceededCount());
         if (!summary.getFailures().isEmpty()) {
-            System.out.println("\n🚨 ====== 致命错误详情 ======");
+            System.out.println("\n ====== 致命错误详情 ======");
             for (TestExecutionSummary.Failure failure : summary.getFailures()) {
                 System.err.println("❌ 失败位置: " + failure.getTestIdentifier().getDisplayName());
                 System.err.println("❌ 错误原因: " + failure.getException().getMessage());
                 failure.getException().printStackTrace(); // 打印完整的红色报错堆栈
             }
         } else {
-            System.out.println("🎉 所有自动化测试顺利通过！");
+            System.out.println("所有自动化测试通过");
         }
     }
 }

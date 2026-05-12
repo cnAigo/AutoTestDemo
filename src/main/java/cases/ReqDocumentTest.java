@@ -5,7 +5,6 @@ import base.BaseTest;
 import org.junit.jupiter.api.*;
 import pages.RequirementPage;
 
-// 🌟 就是漏了这关键的一行
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class ReqDocumentTest extends BaseTest {
 

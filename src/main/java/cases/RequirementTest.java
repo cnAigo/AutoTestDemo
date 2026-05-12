@@ -60,7 +60,7 @@ public class RequirementTest extends BaseTest {
 
         reqPage.ensureNodeExpanded(ROOT_NODE_NAME);
         reqPage.renameFolder(originalName, PARENT_FOLDER_NAME);
-        log.info(">>> GNYL_012 成功！根节点新增文件夹");
+        log.info("GNYL_012 成功！根节点新增文件夹");
     }
 
     @Test
@@ -76,7 +76,7 @@ public class RequirementTest extends BaseTest {
 
         reqPage.ensureNodeExpanded(PARENT_FOLDER_NAME);
         reqPage.renameFolder(originalName, CHILD_FOLDER_NAME_1);
-        System.out.println("GNYL_013 右键树节点新建子文件夹 成功!");
+        log.info("GNYL_013 右键树节点新建子文件夹 成功!");
     }
 
     @Test
@@ -105,9 +105,9 @@ public class RequirementTest extends BaseTest {
             int idStart = responseText.indexOf("\"objectId\":\"") + 12;
             int idEnd = responseText.indexOf("\"", idStart);
             dynamicTargetFolderId = responseText.substring(idStart, idEnd);
-            System.out.println("GNYL_014 (API) 新建文件夹 成功！");
+            log.info("GNYL_014 (API) 新建文件夹 成功！");
         } catch (Exception e) {
-            System.out.println("GNYL_014 (API) 提取目标ID失败: ");
+            log.info("GNYL_014 (API) 提取目标ID失败: ");
         }
     }
 
@@ -119,7 +119,7 @@ public class RequirementTest extends BaseTest {
         String originalName = reqPage.clickNewFolderDropdownAndGetName();
         reqPage.ensureNodeExpanded(PARENT_FOLDER_NAME);
         reqPage.renameFolder(originalName, CHILD_FOLDER_NAME_3);
-        System.out.println("GNYL_015 (UI) 通过菜单栏新建文件夹 成功!");
+        log.info("GNYL_015 (UI) 通过菜单栏新建文件夹 成功!");
     }
 
     @Test
@@ -143,7 +143,7 @@ public class RequirementTest extends BaseTest {
         );
 
         Assertions.assertEquals(200, response.status(), "API 创建文档失败");
-        System.out.println("GNYL_017 (API) 创建文档完成！");
+        log.info("GNYL_017 (API) 创建文档完成！");
     }
 
     @Test
@@ -172,7 +172,7 @@ public class RequirementTest extends BaseTest {
         String responseText = response.text();
 
         // 2. 🌟 加上这行监控探头：打印出后端到底返回了什么鬼东西！
-        System.out.println("GNYL_018 (API)  重命名 成功!");
+        log.info("GNYL_018 (API)  重命名 成功!");
 
         // 3. 🌟 优化断言：如果失败了，把后端返回的话直接贴在报错信息里
         Assertions.assertTrue(responseText.contains("200"), "重命名失败了！后端返回的是: " + responseText);
@@ -182,8 +182,8 @@ public class RequirementTest extends BaseTest {
     @Order(70)
     @DisplayName("UI测试 GNYL_019：正常重命名成功")
     void test_GNYL_027_RenameMultipleTimes_UI() {
-        
-        System.out.println("GNYL_027 (UI) 手动命名成功！");
+
+        log.info("GNYL_027 (UI) 手动命名成功！");
     }
 
     @Test
@@ -208,7 +208,7 @@ public class RequirementTest extends BaseTest {
         String responseText = response.text();
         Assertions.assertTrue(responseText.contains("\"code\": 500") || responseText.contains("\"code\":500"));
         Assertions.assertTrue(responseText.contains("已经存在"));
-        System.out.println("GNYL_025 (API) 同名冲突拦截成功！");
+        log.info("GNYL_025 (API) 同名冲突拦截成功！");
     }
 
     @Test
@@ -216,7 +216,7 @@ public class RequirementTest extends BaseTest {
     @DisplayName("UI测试 GNYL_021：手动修改 同名文件夹")
     void test_GNYL_021_RenameWithSpecialChars_UI() {
 
-        System.out.println("GNYL_024 (UI) 修改成功！");
+        log.info("GNYL_024 (UI) 修改成功！");
     }
 
     @Test
@@ -242,7 +242,7 @@ public class RequirementTest extends BaseTest {
         String responseText = response.text();
         Assertions.assertTrue(responseText.contains("\"code\": 500") || responseText.contains("\"code\":500"), "期望报500，但没有");
         Assertions.assertTrue(responseText.contains("名称不能为空"), "期望拦截空名称，但没有");
-        System.out.println("GNYL_023 (API) 空名称拦截成功！");
+        log.info("GNYL_023 (API) 空名称拦截成功！");
     }
 
     @Test
@@ -272,7 +272,7 @@ public class RequirementTest extends BaseTest {
         // 这种 nth-child 定位虽然深，但在没有 ID 的情况下确实有效
         page.locator("div > div > div:nth-child(2) > div:nth-child(3)").first().click();
 
-        System.out.println("GNYL_023 (UI) 描述编辑并点击保存成功！");
+        log.info("GNYL_023 (UI) 描述编辑并点击保存成功！");
     }
 
     @Test
@@ -297,7 +297,7 @@ public class RequirementTest extends BaseTest {
 
         Assertions.assertEquals(200, response.status());
         Assertions.assertTrue(response.text().contains("修改成功"));
-        System.out.println("GNYL_024 (API) 描述修改成功！");
+        log.info("GNYL_024 (API) 描述修改成功！");
     }
 
 
@@ -314,7 +314,7 @@ public class RequirementTest extends BaseTest {
             return;
         }
 
-        System.out.println("====== 开始通过 API 极速清理所有子节点 ======");
+        System.out.println("\n====== 开始通过 API 极速清理所有子节点 ======");
 
         // 1. 调用查询接口，获取该父节点下所有的子元素
         String searchPayload = "{\"objectId\": \"%s\"}".formatted(dynamicParentId);
