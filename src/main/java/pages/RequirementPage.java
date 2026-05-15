@@ -243,4 +243,42 @@ public class RequirementPage {
         page.getByText(targetName).dblclick();
     }
 
+    /**
+     * 积木：通过 API 创建需求规格，并返回其 objectId
+     * @param projectId 项目 ID
+     * @param parentId 父节点 ID
+     * @return 创建成功的需求规格 objectId
+     */
+    public String createDocumentViaAPI(String projectId, String parentId) {
+        String jsonPayload = """
+            {
+                "parentId": "%s",
+                "parentType": "reqSpeFolder",
+                "projectId": "%s"
+            }
+            """.formatted(parentId, projectId);
+
+        // 注意：路径已根据之前的报错反馈去掉了多余的 /dev-api
+        com.microsoft.playwright.APIResponse response = page.request().post(
+                config.TestConfig.API_PREFIX + "/erm/add/addReqSpe",
+                com.microsoft.playwright.options.RequestOptions.create()
+                        .setHeader("Content-Type", "application/json")
+                        .setData(jsonPayload)
+        );
+
+        org.junit.jupiter.api.Assertions.assertEquals(200, response.status(), "API 创建需求规格失败");
+
+        String responseText = response.text();
+        String docId = "";
+        try {
+            // 解析返回的 JSON 获取 objectId
+            int idStart = responseText.indexOf("\"objectId\":\"") + 12;
+            int idEnd = responseText.indexOf("\"", idStart);
+            docId = responseText.substring(idStart, idEnd);
+        } catch (Exception e) {
+            System.err.println("⚠️ 提取需求规格 ID 失败: " + responseText);
+        }
+        return docId;
+    }
+
 }

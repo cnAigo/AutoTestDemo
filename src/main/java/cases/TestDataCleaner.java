@@ -9,86 +9,108 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import config.TestConfig;
 
-/**
- * 专门用于测试数据清理的工具类
- */
 public class TestDataCleaner {
 
     /**
-     * 清理指定文件夹下的所有子节点（需求规格、子文件夹），但保留该文件夹本身
-     *
-     * @param page     Playwright的Page对象（用于发送API请求）
-     * @param folderId 需要清理的父节点ID（例如“自动化测试”文件夹的ID）
+     * 根据名称智能清理：利用树结构接口，一次性拿到父节点和所有子节点的 ID 并执行清理
      */
+    public static void cleanFolderByName(Page page, String targetName, String projectId) {
+        System.out.println("\n====== 🚀 开始智能清理: [" + targetName + "] ======");
 
-    public static void cleanAutoTestFolder(Page page, String folderId) {
-        if (folderId == null || folderId.isEmpty()) {
-            System.out.println("没有找到目标节点ID，跳过数据清理。");
-            return;
-        }
+        // 1. 获取完整的树结构
+        String treePayload = """
+                {
+                    "projectId": "%s",
+                    "parentId": "%s",
+                    "parentType": "project"
+                }
+                """.formatted(projectId, projectId);
 
-        System.out.println("\n====== 开始清理目录 [" + folderId + "] 下的所有子节点 ======");
-
-        // 1. 调用查询接口，获取该节点下所有的子元素
-        String searchPayload = "{\"objectId\": \"%s\"}".formatted(folderId);
-        APIResponse searchResp = page.request().post(TestConfig.API_PREFIX+"/erm/search/searchReqFolderChildrenList",
-                RequestOptions.create().setHeader("Content-Type", "application/json").setData(searchPayload)
+        APIResponse treeResp = page.request().post(TestConfig.API_PREFIX + "/erm/search/searchReqFolderStructureTree",
+                RequestOptions.create().setHeader("Content-Type", "application/json").setData(treePayload)
         );
 
         try {
-            JsonObject root = JsonParser.parseString(searchResp.text()).getAsJsonObject();
-            JsonObject data = root.getAsJsonObject("data");
+            JsonObject treeRoot = JsonParser.parseString(treeResp.text()).getAsJsonObject();
+            JsonArray dataList = treeRoot.getAsJsonArray("data");
 
-            // --- 2. 遍历清理【需求规格】(reqSpeList) ---
-            if (data.has("reqSpeList") && !data.get("reqSpeList").isJsonNull()) {
-                JsonArray reqSpeList = data.getAsJsonArray("reqSpeList");
-                for (JsonElement element : reqSpeList) {
-                    String docId = element.getAsJsonObject().get("objectId").getAsString();
-                    String docTitle = element.getAsJsonObject().get("title").getAsString();
+            JsonObject targetFolderNode = null;
+            String folderId = null;
 
-                    String docPayload = """
-                        {"objectId": "%s", "parentId": "%s", "parentType": "reqSpeFolder"}
-                        """.formatted(docId, folderId);
-
-                    page.request().post(TestConfig.API_PREFIX+"/erm/del/delReqSpe",
-                            RequestOptions.create().setHeader("Content-Type", "application/json").setData(docPayload));
-                    page.request().post(TestConfig.API_PREFIX+"/erm/clean/cleanReqSpe",
-                            RequestOptions.create().setHeader("Content-Type", "application/json").setData(docPayload));
-
-                    System.out.println("已通过 API 清理需求规格: [" + docTitle + "]");
+            // 2. 遍历第一层，找到 title 为 "自动化测试" 的那个对象
+            for (JsonElement el : dataList) {
+                JsonObject node = el.getAsJsonObject();
+                if (targetName.equals(node.get("title").getAsString())) {
+                    targetFolderNode = node;
+                    folderId = node.get("objectId").getAsString();
+                    break;
                 }
             }
 
-            // --- 3. 遍历清理【子文件夹】(reqSpeFolderList) ---
-            if (data.has("reqSpeFolderList") && !data.get("reqSpeFolderList").isJsonNull()) {
-                JsonArray reqSpeFolderList = data.getAsJsonArray("reqSpeFolderList");
-                for (JsonElement element : reqSpeFolderList) {
-                    String subFolderId = element.getAsJsonObject().get("objectId").getAsString();
-                    String subFolderTitle = element.getAsJsonObject().get("title").getAsString();
+            if (targetFolderNode == null || folderId == null) {
+                System.out.println("ℹ️ 未找到名为 [" + targetName + "] 的文件夹，无需清理。");
+                return;
+            }
 
-                    String delFolderPayload = """
-                        {"objectId": "%s", "parentId": "%s", "parentType": "reqSpeFolder"}
-                        """.formatted(subFolderId, folderId);
+            System.out.println("✅ 锁定目标文件夹 ID: " + folderId);
 
-                    String cleanFolderPayload = """
-                        {"objectId": "%s"}
-                        """.formatted(subFolderId);
+            // 3. 核心：直接遍历它自带的 children 数组进行清理
+            if (targetFolderNode.has("children") && !targetFolderNode.get("children").isJsonNull()) {
+                JsonArray children = targetFolderNode.getAsJsonArray("children");
+                for (JsonElement childEl : children) {
+                    JsonObject child = childEl.getAsJsonObject();
+                    String childId = child.get("objectId").getAsString();
+                    String childTitle = child.get("title").getAsString();
+                    String childType = child.get("type").getAsString(); // 判断是 reqSpe 还是 reqSpeFolder
 
-                    page.request().post(TestConfig.API_PREFIX+"/erm/del/delReqSpeFolder",
-                            RequestOptions.create().setHeader("Content-Type", "application/json").setData(delFolderPayload));
-                    page.request().post(TestConfig.API_PREFIX+"/erm/clean/cleanReqSpeFolder",
-                            RequestOptions.create().setHeader("Content-Type", "application/json").setData(cleanFolderPayload));
+                    // 构造通用的删除 Payload
+                    String delPayload = """
+                            {"objectId": "%s", "parentId": "%s", "parentType": "reqSpeFolder"}
+                            """.formatted(childId, folderId);
 
-                    System.out.println("已通过 API 清理子文件夹: [" + subFolderTitle + "]");
+                    String cleanPayload = """
+                            {"objectId": "%s"}
+                            """.formatted(childId);
+
+                    // 根据 type 调用不同的删除接口
+                    if ("reqSpeFolder".equals(childType)) {
+                        page.request().post(TestConfig.API_PREFIX + "/erm/del/delReqSpeFolder",
+                                RequestOptions.create().setHeader("Content-Type", "application/json").setData(delPayload));
+                        page.request().post(TestConfig.API_PREFIX + "/erm/clean/cleanReqSpeFolder",
+                                RequestOptions.create().setHeader("Content-Type", "application/json").setData(cleanPayload));
+                        System.out.println("  🗑️ 已清理子文件夹: " + childTitle);
+                    } else if ("reqSpe".equals(childType)) {
+                        page.request().post(TestConfig.API_PREFIX + "/erm/del/delReqSpe",
+                                RequestOptions.create().setHeader("Content-Type", "application/json").setData(delPayload));
+                        page.request().post(TestConfig.API_PREFIX + "/erm/clean/cleanReqSpe",
+                                RequestOptions.create().setHeader("Content-Type", "application/json").setData(delPayload)); // reqSpe的清除可能也是传全量payload
+                        System.out.println("  📄 已清理需求规格: " + childTitle);
+                    }
                 }
             }
+
+            // 4. 最后把 "自动化测试" 自己也删掉！
+            String delSelfPayload = """
+                    {"objectId": "%s", "parentId": "%s", "parentType": "project"}
+                    """.formatted(folderId, projectId);
+            page.request().post(TestConfig.API_PREFIX + "/erm/del/delReqSpeFolder",
+                    RequestOptions.create().setHeader("Content-Type", "application/json").setData(delSelfPayload));
+
+            String cleanSelfPayload = """
+                    {"objectId": "%s"}
+                    """.formatted(folderId);
+            page.request().post(TestConfig.API_PREFIX + "/erm/clean/cleanReqSpeFolder",
+                    RequestOptions.create().setHeader("Content-Type", "application/json").setData(cleanSelfPayload));
+
+            System.out.println("✅ 父文件夹 [" + targetName + "] 本身已删除！");
 
         } catch (Exception e) {
-            System.out.println("⚠️ API 清理子节点出现异常: " + e.getMessage());
+            System.out.println("⚠️ 清理过程发生异常: " + e.getMessage());
+            e.printStackTrace();
         }
 
-        // 刷新一下页面，让前端树状图同步最新的干净状态
+        // 5. 刷新页面，保持干净的环境
         page.reload();
-        System.out.println("====== 目标目录清理完毕！ ======");
+        System.out.println("====== ✨ 环境清理完毕 ✨ ======");
     }
 }

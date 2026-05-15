@@ -1,23 +1,91 @@
 package cases;
 
 
+import base.BaseTest;
+import com.microsoft.playwright.APIResponse;
+import com.microsoft.playwright.Page;
+import com.microsoft.playwright.options.AriaRole;
+import com.microsoft.playwright.options.RequestOptions;
+import config.TestConfig;
 import org.junit.jupiter.api.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import pages.RequirementPage;
+
+import static cases.RequirementTest.PROJECT_ID;
+import static cases.RequirementTest.dynamicParentId;
+import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-public class ReqTest {
+public class ReqTest extends BaseTest {
+
+    private RequirementPage reqPage; // 声明变量
+    @BeforeAll
+    public void initPage() {
+        // 将 BaseTest 里的 page 传给 RequirementPage 进行实例化
+        reqPage = new RequirementPage(page);
+    }
+    protected Page page;
+    private static final Logger log = LoggerFactory.getLogger(RequirementTest.class);
+
+    private String reqId="";
+
+    private static final String ReqName = "自动化需求规格";
 
     @Test
     @Order(720)
     @DisplayName("GNYL_72:新建需求规格")
     void test_NGYL072_newReq(){
+        // 前置检查
+        Assumptions.assumeTrue(dynamicParentId != null && !dynamicParentId.isEmpty(), "未获取到父节点ID");
+
+        // 调用拎出来的积木方法
+        String docId = reqPage.createDocumentViaAPI(PROJECT_ID, dynamicParentId);
+
+        // 验证结果
+        Assertions.assertFalse(docId.isEmpty(), "未能获取到新创建文档的 ID");
+        reqId = docId;
+        log.info("GNYL_072 (API) 创建文档完成!");
 
     }
 
     @Test
     @Order(780)
-    @DisplayName("GNYL_78:新建需求规格")
-    void test_NGYL078_modifyReq(){
+    @DisplayName("GNYL_078: 修改需求规格名称")
+    void test_NGYL078_modifyReq() {
+        // 1. 前置检查：确保我们有要修改的需求规格 ID
+        Assumptions.assumeTrue(reqId != null && !reqId.isEmpty(), "未获取到需求规格ID，无法执行修改");
 
+        // 2. 构造 Payload
+        String jsonPayload = """
+                {
+                    "projectId": "%s",
+                    "objectId": "%s",
+                    "parentId": "%s",
+                    "parentType": "reqSpeFolder",
+                    "title": "%s"
+                }
+                """.formatted(PROJECT_ID, reqId, dynamicParentId, ReqName);
+
+        // 3. 发送修改请求
+        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/erm/update/updateReqSpeInfo",
+                RequestOptions.create()
+                        .setHeader("Content-Type", "application/json")
+                        .setData(jsonPayload)
+        );
+
+        // 4. 解析并验证返回结果
+        String responseText = response.text();
+        log.info("GNYL_078 修改返回内容: " + responseText);
+
+        // 5. 断言：验证状态码和业务返回码
+        Assertions.assertEquals(200, response.status(), "HTTP状态码错误");
+        Assertions.assertTrue(responseText.contains("\"code\":200") || responseText.contains("\"code\": 200"),
+                "业务返回码不是 200");
+        Assertions.assertTrue(responseText.contains("修改成功"), "返回信息未包含 '修改成功'");
+
+
+        log.info("GNYL_078 测试通过");
     }
 
     @Test

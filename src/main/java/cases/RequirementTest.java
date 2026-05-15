@@ -33,11 +33,12 @@ public class RequirementTest extends BaseTest {
     private static final String CHILD_FOLDER_NAME_3 = "自动化测试_子文件夹03";
     private static final String Auto_document = "自动化测试_需求规格_API创建";
 
+
     // 🌟 全局项目 ID (从你的抓包记录里拿来的)
-    private static final String PROJECT_ID = "2029043043216191488";
+    static final String PROJECT_ID = "2029043043216191488";
 
     // 🌟 用于存储 012 用例创建出来的真实父节点 ID
-    private static String dynamicParentId = "";
+    static String dynamicParentId = "";
     private static String dynamicTargetFolderId = "";
 
     @BeforeAll
@@ -139,26 +140,18 @@ public class RequirementTest extends BaseTest {
 
     @Test
     @Order(50)
-    @DisplayName("API测试 创建需求规格")
+    @DisplayName("API测试 GNYL_017：创建需求规格")
     void test_GNYL_017_CreateDocument_API() {
+        // 前置检查
         Assumptions.assumeTrue(dynamicParentId != null && !dynamicParentId.isEmpty(), "未获取到父节点ID");
 
-        String jsonPayload = """
-                {
-                    "parentId": "%s",
-                    "parentType": "reqSpeFolder",
-                    "projectId": "%s"
-                }
-                """.formatted(dynamicParentId, PROJECT_ID);
+        // 调用拎出来的积木方法
+        String docId = reqPage.createDocumentViaAPI(PROJECT_ID, dynamicParentId);
 
-        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/rem/add/addReqSpe",
-                RequestOptions.create()
-                        .setHeader("Content-Type", "application/json")
-                        .setData(jsonPayload)
-        );
+        // 验证结果
+        Assertions.assertFalse(docId.isEmpty(), "未能获取到新创建文档的 ID");
 
-        Assertions.assertEquals(200, response.status(), "API 创建文档失败");
-        log.info("GNYL_017 (API) 创建文档完成！");
+        log.info("GNYL_017 (API) 创建文档完成，ID: ");
     }
 
     @Test
@@ -345,7 +338,6 @@ public class RequirementTest extends BaseTest {
 
         // 4. 解析并验证返回结果
         String responseText = response.text();
-        log.info("GNYL_025 删除拦截返回内容: " + responseText);
 
         // 验证状态码是否为 500
         Assertions.assertTrue(responseText.contains("\"code\":500") || responseText.contains("\"code\": 500"),
@@ -355,27 +347,82 @@ public class RequirementTest extends BaseTest {
         Assertions.assertTrue(responseText.contains("该需求规格文件夹下有子级，暂时不允许删除"),
                 "拦截提示信息不符合预期");
 
-        log.info("✅ GNYL_025 拦截逻辑验证通过：系统正确阻止了删除含有子集的文件夹。");
+        log.info("GNYL_025 拦截逻辑验证通过!");
     }
 
     @Test
     @Order(260)
     @DisplayName("GNYL_026 : 删除有子级的文件夹")
     void test_GNYL_025_DeleteHaveChildrenFolder_UI() {
-        log.info("");
+
     }
     @Test
     @Order(270)
     @DisplayName("GNYL_027: 删除无子级的文件夹")
-    void  test_GNYL_027_DeleteNoChildrenFolder(){
+    void test_GNYL_027_DeleteNoChildrenFolder() {
+        Assumptions.assumeTrue(dynamicTargetFolderId != null && !dynamicTargetFolderId.isEmpty(),
+                "未获取到目标文件夹ID，无法执行删除");
 
+        // 2. 构造 Payload (严格匹配你提供的抓包结构)
+        String jsonPayload = """
+                {
+                    "objectId": "%s",
+                    "parentId": "%s"
+                }
+                """.formatted(dynamicTargetFolderId, dynamicParentId);
+
+        // 3. 发送删除请求 (注意：已根据你的日志反馈去掉了冗余的 /dev-api)
+        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/erm/del/delReqSpeFolder",
+                RequestOptions.create()
+                        .setHeader("Content-Type", "application/json")
+                        .setData(jsonPayload)
+        );
+
+        // 4. 解析返回结果
+        String responseText = response.text();
+
+        // 5. 断言：业务 code 应该是 200，且包含“操作成功”
+        Assertions.assertEquals(200, response.status(), "HTTP状态码不是200");
+        Assertions.assertTrue(responseText.contains("\"code\":200") || responseText.contains("\"code\": 200"),
+                "业务返回码不是200");
+        Assertions.assertTrue(responseText.contains("删除成功"), "返回信息未包含'删除成功'");
+
+        log.info("GNYL_027 通过测试!");
     }
 
     @Test
     @Order(290)
-    @DisplayName("GNYL_029: 取消删除文件夹")
-    void test_GNYL_029_CancelDeleteFolder(){
+    @DisplayName("GNYL_029: 取消删除文件夹 (恢复)")
+    void test_GNYL_029_CancelDeleteFolder() {
+        Assumptions.assumeTrue(dynamicTargetFolderId != null && !dynamicTargetFolderId.isEmpty(),
+                "未获取到目标文件夹ID，无法执行恢复操作");
 
+        // 2. 构造 Payload (匹配你提供的抓包结构)
+        String jsonPayload = """
+                {
+                    "objectId": "%s",
+                    "parentId": "%s"
+                }
+                """.formatted(dynamicTargetFolderId, dynamicParentId);
+
+        // 3. 发送恢复请求
+        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/erm/recover/recoverReqSpeFolder",
+                RequestOptions.create()
+                        .setHeader("Content-Type", "application/json")
+                        .setData(jsonPayload)
+        );
+
+        // 4. 解析并验证返回结果
+        String responseText = response.text();
+
+        // 验证状态码和业务消息
+        Assertions.assertEquals(200, response.status(), "HTTP 状态码错误");
+        Assertions.assertTrue(responseText.contains("\"code\":200") || responseText.contains("\"code\": 200"),
+                "业务返回码不是 200");
+        Assertions.assertTrue(responseText.contains("恢复成功"), "返回信息未包含 '恢复成功'");
+
+
+        log.info("GNYL_029 通过测试!");
     }
 
     @Test
@@ -383,11 +430,13 @@ public class RequirementTest extends BaseTest {
     @DisplayName("GNYL_033 (API)：根节点刷新")
     void test_GNYL_033_RefreshRootNode_API() {
 
+        // 2046103585915584512  171
+        // 2047586782053912576  222
         // 1. 构造请求 Payload
         String payload = """
                 {
-                    "projectId": "2046103585915584512",
-                    "parentId": "2046103585915584512",
+                    "projectId": "2047586782053912576",
+                    "parentId": "2047586782053912576",
                     "parentType": "project"
                 }
                 """;
@@ -411,7 +460,7 @@ public class RequirementTest extends BaseTest {
         Assertions.assertTrue(responseBody.contains("操作成功"),
                 "返回信息应该包含 '操作成功'");
 
-        log.info("GNYL_033 (API) 测试通过！");
+        log.info("GNYL_033 (API) 刷新 测试通过！");
     }
 
 
@@ -421,6 +470,6 @@ public class RequirementTest extends BaseTest {
     @Order(100000)
     @DisplayName("清理【自动化测试】文件夹下所有数据")
     void callCleanup() {
-        TestDataCleaner.cleanAutoTestFolder(page, dynamicParentId);
+        TestDataCleaner.cleanFolderByName(page, "自动化测试", PROJECT_ID);
     }
 }
