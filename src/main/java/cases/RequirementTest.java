@@ -378,8 +378,6 @@ public class RequirementTest extends BaseTest {
 
     }
 
-
-
     @Test
     @Order(330)
     @DisplayName("GNYL_033 (API)：根节点刷新")
