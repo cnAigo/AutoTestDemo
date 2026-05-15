@@ -423,6 +423,15 @@ public class ReqTest extends BaseTest {
         // 预期：大纲标签页隐藏，“隐藏大纲”变为“显示大纲”
     }
 
-
+    @Test
+    @Order(100000)
+    @DisplayName("清理【自动化测试】文件夹下所有数据")
+    void callCleanup() {
+        TestDataCleaner.cleanFolderByName(page, "自动化测试", PROJECT_ID);
+        if (page != null) page.close();
+        if (context != null) context.close();
+        if (browser != null) browser.close();
+        if (playwright != null) playwright.close();
+    }
 
 }

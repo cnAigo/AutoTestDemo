@@ -24,32 +24,29 @@ public class BaseTest {
         try {
             playwright = Playwright.create();
             browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
-                    .setHeadless(false) // false有头 ，true 无头
+                    .setHeadless(false)
                     .setSlowMo(500));
 
-            context = browser.newContext(new Browser.NewContextOptions()
+            // 🌟 核心修改点：检查是否有保存好的登录状态
+            Browser.NewContextOptions contextOptions = new Browser.NewContextOptions()
                     .setViewportSize(1920, 1080)
-                    .setIgnoreHTTPSErrors(true));
-            page = context.newPage();
+                    .setIgnoreHTTPSErrors(true);
 
-            // 设置全局默认等待时间为 30 秒，防止死等
+            java.nio.file.Path authPath = java.nio.file.Paths.get("auth.json");
+            if (java.nio.file.Files.exists(authPath)) {
+                contextOptions.setStorageStatePath(authPath); // 加载登录状态
+                log.info("🚀 检测到 auth.json，正在跳过登录并加载 Session...");
+            }
+
+            context = browser.newContext(contextOptions);
+            page = context.newPage();
             page.setDefaultTimeout(30000);
 
-
         } catch (Exception e) {
-            System.err.println("[ERROR] Setup 失败！原因: " + e.getMessage());
-            e.printStackTrace();
-            throw e; // 抛出异常让 JUnit 停止后续无效执行
+            System.err.println("[ERROR] Setup 失败！" + e.getMessage());
+            throw e;
         }
     }
 
-    @AfterAll
-    public void tearDown() {
-        log.info("[Cleanup] 正在关闭浏览器并释放资源...");
-        if (page != null) page.close();
-        if (context != null) context.close();
-        if (browser != null) browser.close();
-        if (playwright != null) playwright.close();
-        log.info("====== 测试环境已安全关闭 ======");
-    }
+
 }

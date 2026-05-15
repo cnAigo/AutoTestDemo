@@ -2,6 +2,7 @@ package cases; // 必须和文件夹 src/main/java/cases 对应
 
 import base.BaseTest; // 假设你的 BaseTest 在 base 包下
 import com.microsoft.playwright.APIResponse;
+import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.AriaRole;
@@ -61,6 +62,8 @@ public class RequirementTest extends BaseTest {
 
         // 验证进入页面
         assertThat(page.getByText("需求（根节点）").first()).isVisible();
+        context.storageState(new BrowserContext.StorageStateOptions().setPath(java.nio.file.Paths.get("auth.json")));
+        log.info("✅ 登录成功，已保存 Session 状态至 auth.json");
     }
 
     @Test
@@ -466,10 +469,5 @@ public class RequirementTest extends BaseTest {
 
 
 
-    @Test
-    @Order(100000)
-    @DisplayName("清理【自动化测试】文件夹下所有数据")
-    void callCleanup() {
-        TestDataCleaner.cleanFolderByName(page, "自动化测试", PROJECT_ID);
-    }
+
 }
