@@ -108,7 +108,7 @@ public class RequirementTest extends BaseTest {
                 }
                 """.formatted(dynamicParentId, PROJECT_ID);
 
-        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/dev-api/erm/add/addReqSpeFolder",
+        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/erm/add/addReqSpeFolder",
                 RequestOptions.create().setHeader("Content-Type", "application/json").setData(jsonPayload)
         );
 
@@ -151,7 +151,7 @@ public class RequirementTest extends BaseTest {
                 }
                 """.formatted(dynamicParentId, PROJECT_ID);
 
-        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/dev-api/erm/add/addReqSpe",
+        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/rem/add/addReqSpe",
                 RequestOptions.create()
                         .setHeader("Content-Type", "application/json")
                         .setData(jsonPayload)
@@ -163,7 +163,7 @@ public class RequirementTest extends BaseTest {
 
     @Test
     @Order(60)
-    @DisplayName("API测试 GNYL_018：正常重命名成功 (验证200)")
+    @DisplayName("API测试 GNYL_018：正常重命名成功")
     void test_GNYL_018_RenameSuccess_API() {
         Assumptions.assumeTrue(!dynamicTargetFolderId.isEmpty(), "没有拿到目标文件夹ID");
 
@@ -179,7 +179,7 @@ public class RequirementTest extends BaseTest {
                 }
                 """.formatted(PROJECT_ID, dynamicTargetFolderId, dynamicParentId, validName);
 
-        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/dev-api/erm/update/updateReqSpeFolderInfo",
+        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/erm/update/updateReqSpeFolderInfo",
                 RequestOptions.create().setHeader("Content-Type", "application/json").setData(jsonPayload)
         );
 
@@ -219,7 +219,7 @@ public class RequirementTest extends BaseTest {
                     "title": "%s"
                 }
                 """.formatted(PROJECT_ID, dynamicTargetFolderId, dynamicParentId, CHILD_FOLDER_NAME_1);
-        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/dev-api/erm/update/updateReqSpeFolderInfo",
+        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/erm/update/updateReqSpeFolderInfo",
                 RequestOptions.create().setHeader("Content-Type", "application/json").setData(jsonPayload)
         );
 
@@ -255,7 +255,7 @@ public class RequirementTest extends BaseTest {
                 }
                 """.formatted(PROJECT_ID, dynamicTargetFolderId, dynamicParentId);
 
-        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/dev-api/erm/update/updateReqSpeFolderInfo",
+        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/erm/update/updateReqSpeFolderInfo",
                 RequestOptions.create().setHeader("Content-Type", "application/json").setData(jsonPayload)
         );
 
@@ -309,7 +309,7 @@ public class RequirementTest extends BaseTest {
                 }
                 """.formatted(PROJECT_ID, dynamicTargetFolderId, dynamicParentId);
 
-        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/dev-api/erm/update/updateReqSpeFolderInfo",
+        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/erm/update/updateReqSpeFolderInfo",
                 RequestOptions.create().setHeader("Content-Type", "application/json").setData(jsonPayload)
         );
 
@@ -337,7 +337,7 @@ public class RequirementTest extends BaseTest {
                 """.formatted(dynamicParentId, PROJECT_ID);
 
         // 3. 调用删除接口
-        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/dev-api/erm/del/delReqSpeFolder",
+        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/erm/del/delReqSpeFolder",
                 RequestOptions.create()
                         .setHeader("Content-Type", "application/json")
                         .setData(jsonPayload)
@@ -394,7 +394,7 @@ public class RequirementTest extends BaseTest {
 
         // 2. 直接调用底层的刷新树节点接口
         APIResponse response = page.request().post(
-                TestConfig.API_PREFIX + "/dev-api/erm/search/searchReqFolderStructureTree",
+                TestConfig.API_PREFIX + "/erm/search/searchReqFolderStructureTree",
                 RequestOptions.create()
                         .setHeader("Content-Type", "application/json")
                         .setData(payload)
@@ -413,6 +413,8 @@ public class RequirementTest extends BaseTest {
 
         log.info("GNYL_033 (API) 测试通过！");
     }
+
+
 
 
     @Test

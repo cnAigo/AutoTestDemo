@@ -31,7 +31,7 @@ public class TestDataCleaner {
 
         // 1. 调用查询接口，获取该节点下所有的子元素
         String searchPayload = "{\"objectId\": \"%s\"}".formatted(folderId);
-        APIResponse searchResp = page.request().post(TestConfig.API_PREFIX+"/dev-api/erm/search/searchReqFolderChildrenList",
+        APIResponse searchResp = page.request().post(TestConfig.API_PREFIX+"/erm/search/searchReqFolderChildrenList",
                 RequestOptions.create().setHeader("Content-Type", "application/json").setData(searchPayload)
         );
 
@@ -50,9 +50,9 @@ public class TestDataCleaner {
                         {"objectId": "%s", "parentId": "%s", "parentType": "reqSpeFolder"}
                         """.formatted(docId, folderId);
 
-                    page.request().post(TestConfig.API_PREFIX+"/dev-api/erm/del/delReqSpe",
+                    page.request().post(TestConfig.API_PREFIX+"/erm/del/delReqSpe",
                             RequestOptions.create().setHeader("Content-Type", "application/json").setData(docPayload));
-                    page.request().post(TestConfig.API_PREFIX+"/dev-api/erm/clean/cleanReqSpe",
+                    page.request().post(TestConfig.API_PREFIX+"/erm/clean/cleanReqSpe",
                             RequestOptions.create().setHeader("Content-Type", "application/json").setData(docPayload));
 
                     System.out.println("已通过 API 清理需求规格: [" + docTitle + "]");
@@ -74,9 +74,9 @@ public class TestDataCleaner {
                         {"objectId": "%s"}
                         """.formatted(subFolderId);
 
-                    page.request().post(TestConfig.API_PREFIX+"/dev-api/erm/del/delReqSpeFolder",
+                    page.request().post(TestConfig.API_PREFIX+"/erm/del/delReqSpeFolder",
                             RequestOptions.create().setHeader("Content-Type", "application/json").setData(delFolderPayload));
-                    page.request().post(TestConfig.API_PREFIX+"/dev-api/erm/clean/cleanReqSpeFolder",
+                    page.request().post(TestConfig.API_PREFIX+"/erm/clean/cleanReqSpeFolder",
                             RequestOptions.create().setHeader("Content-Type", "application/json").setData(cleanFolderPayload));
 
                     System.out.println("已通过 API 清理子文件夹: [" + subFolderTitle + "]");

@@ -2,7 +2,7 @@ package config;
 
 public class TestConfig {
     // 基础 URL
-    public static final String BASE_URL = "https://192.168.6.171:8088";
+    public static final String BASE_URL = "https://192.168.0.222:8088";
 
     // 组合后的页面地址
     public static final String LOGIN_URL = BASE_URL + "/#/login";
