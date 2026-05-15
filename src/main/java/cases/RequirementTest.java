@@ -212,7 +212,7 @@ public class RequirementTest extends BaseTest {
 
         String jsonPayload = """
                 {
-                    "projectId": "%s",6
+                    "projectId": "%s",
                     "objectId": "%s",
                     "parentId": "%s",
                     "parentType": "reqSpeFolder",
