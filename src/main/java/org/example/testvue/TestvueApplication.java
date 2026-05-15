@@ -46,8 +46,8 @@ public class TestvueApplication {
         if (!summary.getFailures().isEmpty()) {
             System.out.println("\n ====== 致命错误详情 ======");
             for (TestExecutionSummary.Failure failure : summary.getFailures()) {
-                System.err.println("❌ 失败位置: " + failure.getTestIdentifier().getDisplayName());
-                System.err.println("❌ 错误原因: " + failure.getException().getMessage());
+                System.err.println(" 失败位置: " + failure.getTestIdentifier().getDisplayName());
+                System.err.println(" 错误原因: " + failure.getException().getMessage());
                 failure.getException().printStackTrace(); // 打印完整的红色报错堆栈
             }
         } else {

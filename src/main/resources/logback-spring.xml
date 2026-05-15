@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- 忽略 Playwright 的警告日志 -->
+    <logger name="com.microsoft.playwright" level="ERROR"/>
+    <logger name="org.slf4j" level="ERROR"/>
+
+    <!-- 控制台输出 -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

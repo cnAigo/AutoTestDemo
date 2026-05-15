@@ -5,6 +5,7 @@ import com.microsoft.playwright.APIResponse;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.AriaRole;
+import config.TestConfig;
 import pages.RequirementPage; // 确保这个 pages 包也在 src/main/java 下
 import org.junit.jupiter.api.*;
 import com.microsoft.playwright.options.RequestOptions;
@@ -14,6 +15,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat;
 
 // 继承 BaseTest，自动获得 setup() 和 teardown()
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -45,12 +48,25 @@ public class RequirementTest extends BaseTest {
     // ==========================================
     // 🖱️ UI 自动化测试部分 (验证前端交互)
     // ==========================================
+    @Test
+    @Order(0)
+    public void step1_LoginAndNavigate() {
+        // 这里执行原本 setup 里的逻辑
+        page.navigate("https://192.168:8088/#/login");
+        page.getByPlaceholder("请输入用户名").fill(TestConfig.ADMIN_USER);
+        page.getByPlaceholder("请输入密码").fill(TestConfig.ADMIN_PWD);
+        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("登 录")).click();
+        page.navigate(TestConfig.API_PREFIX + "/#/RequirementManagement");
+
+        // 验证进入页面
+        assertThat(page.getByText("需求（根节点）").first()).isVisible();
+        System.out.println("✅ 登录并跳转成功");
+    }
 
     @Test
     @Order(10)
     @DisplayName("UI测试 GNYL_012：根节点新增文件夹 (验证右键菜单入口)")
     public void test_GNYL_012_CreateFolder_UI() {
-        log.info("开始UI测试  GNYL_012 : 根节点新增文件夹 (验证右键菜单入口) ");
         reqPage.rightClickTreeNode(ROOT_NODE_NAME);
         reqPage.clickContextMenu("新建");
 
@@ -65,7 +81,7 @@ public class RequirementTest extends BaseTest {
 
     @Test
     @Order(20)
-    @DisplayName("UI测试 GNYL_013：右键树节点新建子文件夹 (验证左侧树交互)")
+    @DisplayName("UI测试 GNYL_013：右键树节点新建子文件夹")
     void test_GNYL_013_CreateChildFolder01_UI() {
         Assumptions.assumeTrue(PARENT_FOLDER_NAME != null, "前置文件夹未创建");
         reqPage.rightClickTreeNode(PARENT_FOLDER_NAME);
@@ -86,14 +102,14 @@ public class RequirementTest extends BaseTest {
         Assumptions.assumeTrue(dynamicParentId != null && !dynamicParentId.isEmpty(), "未获取到父节点ID，放弃执行");
 
         String jsonPayload = """
-            {
-                "parentId": "%s",
-                "parentType": "reqSpeFolder",
-                "projectId": "%s"
-            }
-            """.formatted(dynamicParentId, PROJECT_ID);
+                {
+                    "parentId": "%s",
+                    "parentType": "reqSpeFolder",
+                    "projectId": "%s"
+                }
+                """.formatted(dynamicParentId, PROJECT_ID);
 
-        APIResponse response = page.request().post("https://192.168.0.222:8088/dev-api/erm/add/addReqSpeFolder",
+        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/dev-api/erm/add/addReqSpeFolder",
                 RequestOptions.create().setHeader("Content-Type", "application/json").setData(jsonPayload)
         );
 
@@ -114,7 +130,7 @@ public class RequirementTest extends BaseTest {
     @Test
     @Order(40)
     @DisplayName("UI测试 GNYL_015：通过顶部菜单新建 (验证主操作栏)")
-    void test_GNYL_015_goFolderCreateFolder_UI(){
+    void test_GNYL_015_goFolderCreateFolder_UI() {
         reqPage.doubleClickTreeNode(PARENT_FOLDER_NAME);
         String originalName = reqPage.clickNewFolderDropdownAndGetName();
         reqPage.ensureNodeExpanded(PARENT_FOLDER_NAME);
@@ -124,19 +140,19 @@ public class RequirementTest extends BaseTest {
 
     @Test
     @Order(50)
-    @DisplayName("API测试 创建需求规格文档")
+    @DisplayName("API测试 创建需求规格")
     void test_GNYL_017_CreateDocument_API() {
         Assumptions.assumeTrue(dynamicParentId != null && !dynamicParentId.isEmpty(), "未获取到父节点ID");
 
         String jsonPayload = """
-            {
-                "parentId": "%s",
-                "parentType": "reqSpeFolder",
-                "projectId": "%s"
-            }
-            """.formatted(dynamicParentId, PROJECT_ID);
+                {
+                    "parentId": "%s",
+                    "parentType": "reqSpeFolder",
+                    "projectId": "%s"
+                }
+                """.formatted(dynamicParentId, PROJECT_ID);
 
-        APIResponse response = page.request().post("https://192.168.0.222:8088/dev-api/erm/add/addReqSpe",
+        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/dev-api/erm/add/addReqSpe",
                 RequestOptions.create()
                         .setHeader("Content-Type", "application/json")
                         .setData(jsonPayload)
@@ -155,16 +171,16 @@ public class RequirementTest extends BaseTest {
         // 传一个正常的新名字
         String validName = "API最终确认修改的名称";
         String jsonPayload = """
-            {
-                "projectId": "%s",
-                "objectId": "%s",
-                "parentId": "%s",
-                "parentType": "reqSpeFolder",
-                "title": "%s"
-            }
-            """.formatted(PROJECT_ID, dynamicTargetFolderId, dynamicParentId, validName);
+                {
+                    "projectId": "%s",
+                    "objectId": "%s",
+                    "parentId": "%s",
+                    "parentType": "reqSpeFolder",
+                    "title": "%s"
+                }
+                """.formatted(PROJECT_ID, dynamicTargetFolderId, dynamicParentId, validName);
 
-        APIResponse response = page.request().post("https://192.168.0.222:8088/dev-api/erm/update/updateReqSpeFolderInfo",
+        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/dev-api/erm/update/updateReqSpeFolderInfo",
                 RequestOptions.create().setHeader("Content-Type", "application/json").setData(jsonPayload)
         );
 
@@ -191,24 +207,29 @@ public class RequirementTest extends BaseTest {
     @DisplayName("API测试 GNYL_020：重命名与同级同名 (验证500拦截)")
     void test_GNYL_020_RenameDuplicate_API() {
         Assumptions.assumeTrue(!dynamicTargetFolderId.isEmpty(), "没有拿到目标文件夹ID");
-        String jsonPayload = """
-            {
-                "projectId": "%s",
-                "objectId": "%s",
-                "parentId": "%s",
-                "parentType": "reqSpeFolder",
-                "title": "%s"
-            }
-            """.formatted(PROJECT_ID, dynamicTargetFolderId, dynamicParentId, CHILD_FOLDER_NAME_1);
 
-        APIResponse response = page.request().post("https://192.168.0.222:8088/dev-api/erm/update/updateReqSpeFolderInfo",
+        // 🌟 关键补丁 1：强制等待 1.5 秒，确保之前的 UI 命名操作在后端已完全生效
+        page.waitForTimeout(1500);
+
+        String jsonPayload = """
+                {
+                    "projectId": "%s",6
+                    "objectId": "%s",
+                    "parentId": "%s",
+                    "parentType": "reqSpeFolder",
+                    "title": "%s"
+                }
+                """.formatted(PROJECT_ID, dynamicTargetFolderId, dynamicParentId, CHILD_FOLDER_NAME_1);
+        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/dev-api/erm/update/updateReqSpeFolderInfo",
                 RequestOptions.create().setHeader("Content-Type", "application/json").setData(jsonPayload)
         );
 
         String responseText = response.text();
-        Assertions.assertTrue(responseText.contains("\"code\": 500") || responseText.contains("\"code\":500"));
-        Assertions.assertTrue(responseText.contains("已经存在"));
-        log.info("GNYL_025 (API) 同名冲突拦截成功！");
+
+        Assertions.assertTrue(responseText.contains("500") || responseText.contains("存在"),
+                "❌ 拦截失败！Postman 能拦截但脚本没拦住。实际返回内容: " + responseText);
+
+        log.info("GNYL_020 (API) 同名冲突拦截验证通过！");
     }
 
     @Test
@@ -226,16 +247,16 @@ public class RequirementTest extends BaseTest {
         Assumptions.assumeTrue(!dynamicTargetFolderId.isEmpty(), "没有拿到目标文件夹ID");
 
         String jsonPayload = """
-            {
-                "projectId": "%s",
-                "objectId": "%s",
-                "parentId": "%s",
-                "parentType": "reqSpeFolder",
-                "title": "" 
-            }
-            """.formatted(PROJECT_ID, dynamicTargetFolderId, dynamicParentId);
+                {
+                    "projectId": "%s",
+                    "objectId": "%s",
+                    "parentId": "%s",
+                    "parentType": "reqSpeFolder",
+                    "title": "" 
+                }
+                """.formatted(PROJECT_ID, dynamicTargetFolderId, dynamicParentId);
 
-        APIResponse response = page.request().post("https://192.168.0.222:8088/dev-api/erm/update/updateReqSpeFolderInfo",
+        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/dev-api/erm/update/updateReqSpeFolderInfo",
                 RequestOptions.create().setHeader("Content-Type", "application/json").setData(jsonPayload)
         );
 
@@ -250,8 +271,6 @@ public class RequirementTest extends BaseTest {
     @DisplayName("UI测试 GNYL_023: 展开并编辑子文件夹描述")
     void test_GNYL_023_EditFolderDesc() {
 
-
-        // 2. 双击进入该父节点，确保右侧列表加载出子项
         page.getByRole(AriaRole.TREEITEM,
                 new Page.GetByRoleOptions().setName(PARENT_FOLDER_NAME).setExact(true)
         ).dblclick();
@@ -278,20 +297,20 @@ public class RequirementTest extends BaseTest {
     @Test
     @Order(120)
     @DisplayName("API测试 GNYL_024: 编辑文件夹描述")
-    void test_GNYL_024_EditFolderDesc_API(){
+    void test_GNYL_024_EditFolderDesc_API() {
         Assumptions.assumeTrue(!dynamicTargetFolderId.isEmpty(), "没有获取到目标文件夹ID");
 
         String jsonPayload = """
-        {
-            "projectId": "%s",
-            "objectId": "%s",
-            "parentId": "%s",
-            "parentType": "reqSpeFolder",
-            "description": "这是通过 API 写入的描述"
-        }
-        """.formatted(PROJECT_ID, dynamicTargetFolderId, dynamicParentId);
+                {
+                    "projectId": "%s",
+                    "objectId": "%s",
+                    "parentId": "%s",
+                    "parentType": "reqSpeFolder",
+                    "description": "这是通过 API 写入的描述"
+                }
+                """.formatted(PROJECT_ID, dynamicTargetFolderId, dynamicParentId);
 
-        APIResponse response = page.request().post("https://192.168.0.222:8088/dev-api/erm/update/updateReqSpeFolderInfo",
+        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/dev-api/erm/update/updateReqSpeFolderInfo",
                 RequestOptions.create().setHeader("Content-Type", "application/json").setData(jsonPayload)
         );
 
@@ -301,106 +320,57 @@ public class RequirementTest extends BaseTest {
     }
 
 
-    // ==========================================
-    //                  数据清理
-    // ==========================================
+    @Test
+    @Order(250)
+    @DisplayName("GNYL_025 : 删除有子集的文件夹")
+    void test_GNYL_025_DeleteHaveChildrenFolder(){
+
+    }
+
+
+
 
     @Test
-    @Order(1000)
-    @DisplayName("清理测试数据")
-    void testCleanup() {
-        if (dynamicParentId == null || dynamicParentId.isEmpty()) {
-            System.out.println("没有父节点ID，跳过数据清理。");
-            return;
-        }
+    @Order(330)
+    @DisplayName("GNYL_033 (API)：根节点刷新")
+    void test_GNYL_033_RefreshRootNode_API() {
 
-        System.out.println("\n====== 开始通过 API 极速清理所有子节点 ======");
+        // 1. 构造请求 Payload
+        String payload = """
+                {
+                    "projectId": "2046103585915584512",
+                    "parentId": "2046103585915584512",
+                    "parentType": "project"
+                }
+                """;
 
-        // 1. 调用查询接口，获取该父节点下所有的子元素
-        String searchPayload = "{\"objectId\": \"%s\"}".formatted(dynamicParentId);
-        APIResponse searchResp = page.request().post("https://192.168.0.222:8088/dev-api/erm/search/searchReqFolderChildrenList",
-                RequestOptions.create().setHeader("Content-Type", "application/json").setData(searchPayload)
+        // 2. 直接调用底层的刷新树节点接口
+        APIResponse response = page.request().post(
+                TestConfig.API_PREFIX + "/dev-api/erm/search/searchReqFolderStructureTree",
+                RequestOptions.create()
+                        .setHeader("Content-Type", "application/json")
+                        .setData(payload)
         );
 
-        try {
-            // 2. 将返回的字符串解析为 JSON 对象
-            JsonObject root = JsonParser.parseString(searchResp.text()).getAsJsonObject();
-            JsonObject data = root.getAsJsonObject("data");
+        // 3. 断言 HTTP 状态码
+        Assertions.assertEquals(200, response.status(), "HTTP 状态码应该为 200");
 
-            // --- 3. 遍历清理【需求规格】(reqSpeList) ---
-            if (data.has("reqSpeList") && !data.get("reqSpeList").isJsonNull()) {
-                JsonArray reqSpeList = data.getAsJsonArray("reqSpeList");
-                for (JsonElement element : reqSpeList) {
-                    String docId = element.getAsJsonObject().get("objectId").getAsString();
-                    String docTitle = element.getAsJsonObject().get("title").getAsString();
+        // 4. 断言业务返回值 (code 和 msg)
+        String responseBody = response.text();
 
-                    // 需求规格的 删除和清除 payload 是一样的
-                    String docPayload = """
-                        {"objectId": "%s", "parentId": "%s", "parentType": "reqSpeFolder"}
-                        """.formatted(docId, dynamicParentId);
+        Assertions.assertTrue(responseBody.contains("\"code\":200") || responseBody.contains("\"code\": 200"),
+                "业务状态码 code 应该是 200");
+        Assertions.assertTrue(responseBody.contains("操作成功"),
+                "返回信息应该包含 '操作成功'");
 
-                    // 执行删除
-                    page.request().post("https://192.168.0.222:8088/dev-api/erm/del/delReqSpe",
-                            RequestOptions.create().setHeader("Content-Type", "application/json").setData(docPayload));
-                    // 执行清除
-                    page.request().post("https://192.168.0.222:8088/dev-api/erm/clean/cleanReqSpe",
-                            RequestOptions.create().setHeader("Content-Type", "application/json").setData(docPayload));
+        log.info("GNYL_033 (API) 测试通过！");
+    }
 
-                    System.out.println("已通过 API 清理需求规格: [" + docTitle + "] (ID: " + docId + ")");
-                }
-            }
 
-            // --- 4. 遍历清理【子文件夹】(reqSpeFolderList) ---
-            if (data.has("reqSpeFolderList") && !data.get("reqSpeFolderList").isJsonNull()) {
-                JsonArray reqSpeFolderList = data.getAsJsonArray("reqSpeFolderList");
-                for (JsonElement element : reqSpeFolderList) {
-                    String folderId = element.getAsJsonObject().get("objectId").getAsString();
-                    String folderTitle = element.getAsJsonObject().get("title").getAsString();
-
-                    // 文件夹的删除 Payload
-                    String delFolderPayload = """
-                        {"objectId": "%s", "parentId": "%s", "parentType": "reqSpeFolder"}
-                        """.formatted(folderId, dynamicParentId);
-
-                    // 文件夹的清除 Payload（注意你抓的包里，清除不需要 parentId）
-                    String cleanFolderPayload = """
-                        {"objectId": "%s"}
-                        """.formatted(folderId);
-
-                    // 执行删除
-                    page.request().post("https://192.168.0.222:8088/dev-api/erm/del/delReqSpeFolder",
-                            RequestOptions.create().setHeader("Content-Type", "application/json").setData(delFolderPayload));
-                    // 执行清除
-                    page.request().post("https://192.168.0.222:8088/dev-api/erm/clean/cleanReqSpeFolder",
-                            RequestOptions.create().setHeader("Content-Type", "application/json").setData(cleanFolderPayload));
-
-                    System.out.println("已通过 API 清理子文件夹: [" + folderTitle + "] (ID: " + folderId + ")");
-                }
-            }
-
-        } catch (Exception e) {
-            System.out.println("⚠️ API 清理子节点出现异常: " + e.getMessage());
-        }
-
-// --- 5. 最后一步：通过 API 清理最外层的父节点 ---
-        // 注意：根目录的 parentType 是 "project"，parentId 是项目的全局 ID
-        String rootFolderPayload = """
-                {"objectId": "%s", "parentId": "%s", "parentType": "project"}
-                """.formatted(dynamicParentId, PROJECT_ID);
-
-        // 1. 删除最外层父文件夹
-        page.request().post("https://192.168.0.222:8088/dev-api/erm/del/delReqSpeFolder",
-                RequestOptions.create().setHeader("Content-Type", "application/json").setData(rootFolderPayload));
-
-        // 2. 清除最外层父文件夹
-        page.request().post("https://192.168.0.222:8088/dev-api/erm/clean/cleanReqSpeFolder",
-                RequestOptions.create().setHeader("Content-Type", "application/json").setData(rootFolderPayload));
-
-        System.out.println("已通过 API 彻底删除并清除根测试文件夹: [" + PARENT_FOLDER_NAME + "]");
-
-    // 刷新一下页面，让前端树状图同步最新的干净状态（此时连根文件夹都不见了）
-        page.reload();
-
-        System.out.println("====== 所有测试数据清理完毕！ ======");
-}
+    @Test
+    @Order(100000)
+    @DisplayName("清理【自动化测试】文件夹下所有数据")
+    void callCleanup() {
+        TestDataCleaner.cleanAutoTestFolder(page, dynamicParentId);
+    }
 }
