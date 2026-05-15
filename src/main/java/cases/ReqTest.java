@@ -19,18 +19,17 @@ import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertTha
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class ReqTest extends BaseTest {
 
-    private RequirementPage reqPage; // 声明变量
+    private RequirementPage reqPage;
+
+    // 🌟 必须是 static，否则修改和删除方法拿不到这个 ID
+    private static String reqId = "";
+    private static final String ReqName = "自动化需求规格";
+    private static final Logger log = LoggerFactory.getLogger(RequirementTest.class);
     @BeforeAll
     public void initPage() {
-        // 将 BaseTest 里的 page 传给 RequirementPage 进行实例化
+        // 这里会正确引用父类 BaseTest 的 page
         reqPage = new RequirementPage(page);
     }
-    protected Page page;
-    private static final Logger log = LoggerFactory.getLogger(RequirementTest.class);
-
-    private String reqId="";
-
-    private static final String ReqName = "自动化需求规格";
 
     @Test
     @Order(720)

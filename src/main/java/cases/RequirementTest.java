@@ -38,7 +38,7 @@ public class RequirementTest extends BaseTest {
     static final String PROJECT_ID = "2029043043216191488";
 
     // 🌟 用于存储 012 用例创建出来的真实父节点 ID
-    static String dynamicParentId = "";
+    public static  String dynamicParentId = "";
     private static String dynamicTargetFolderId = "";
 
     @BeforeAll
