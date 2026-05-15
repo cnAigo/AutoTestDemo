@@ -52,15 +52,14 @@ public class RequirementTest extends BaseTest {
     @Order(0)
     public void step1_LoginAndNavigate() {
         // 这里执行原本 setup 里的逻辑
-        page.navigate("https://192.168:8088/#/login");
+        page.navigate(TestConfig.BASE_URL + "/#/login");
         page.getByPlaceholder("请输入用户名").fill(TestConfig.ADMIN_USER);
         page.getByPlaceholder("请输入密码").fill(TestConfig.ADMIN_PWD);
         page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("登 录")).click();
-        page.navigate(TestConfig.API_PREFIX + "/#/RequirementManagement");
+        page.navigate(TestConfig.BASE_URL + "/#/RequirementManagement");
 
         // 验证进入页面
         assertThat(page.getByText("需求（根节点）").first()).isVisible();
-        System.out.println("✅ 登录并跳转成功");
     }
 
     @Test
@@ -322,11 +321,62 @@ public class RequirementTest extends BaseTest {
 
     @Test
     @Order(250)
-    @DisplayName("GNYL_025 : 删除有子集的文件夹")
-    void test_GNYL_025_DeleteHaveChildrenFolder(){
+    @DisplayName("GNYL_025 : 删除有子级的文件夹")
+    void test_GNYL_025_DeleteHaveChildrenFolder_API() {
+        // 1. 确保有父节点 ID (即那个含有子集的文件夹)
+        Assumptions.assumeTrue(dynamicParentId != null && !dynamicParentId.isEmpty(), "未获取到父节点ID");
+
+        // 2. 构造 Payload (使用你抓包提供的数据格式)
+        // 注意：这里 objectId 传入的是父文件夹 ID，因为它下面已经有子文件夹了
+        String jsonPayload = """
+                {
+                    "objectId": "%s",
+                    "parentId": "%s",
+                    "parentType": "project"
+                }
+                """.formatted(dynamicParentId, PROJECT_ID);
+
+        // 3. 调用删除接口
+        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/dev-api/erm/del/delReqSpeFolder",
+                RequestOptions.create()
+                        .setHeader("Content-Type", "application/json")
+                        .setData(jsonPayload)
+        );
+
+        // 4. 解析并验证返回结果
+        String responseText = response.text();
+        log.info("GNYL_025 删除拦截返回内容: " + responseText);
+
+        // 验证状态码是否为 500
+        Assertions.assertTrue(responseText.contains("\"code\":500") || responseText.contains("\"code\": 500"),
+                "期望返回 500 错误码以示拦截");
+
+        // 验证提示信息是否正确
+        Assertions.assertTrue(responseText.contains("该需求规格文件夹下有子级，暂时不允许删除"),
+                "拦截提示信息不符合预期");
+
+        log.info("✅ GNYL_025 拦截逻辑验证通过：系统正确阻止了删除含有子集的文件夹。");
+    }
+
+    @Test
+    @Order(260)
+    @DisplayName("GNYL_026 : 删除有子级的文件夹")
+    void test_GNYL_025_DeleteHaveChildrenFolder_UI() {
+        log.info("");
+    }
+    @Test
+    @Order(270)
+    @DisplayName("GNYL_027: 删除无子级的文件夹")
+    void  test_GNYL_027_DeleteNoChildrenFolder(){
 
     }
 
+    @Test
+    @Order(290)
+    @DisplayName("GNYL_029: 取消删除文件夹")
+    void test_GNYL_029_CancelDeleteFolder(){
+
+    }
 
 
 

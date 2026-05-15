@@ -24,8 +24,8 @@ public class BaseTest {
         try {
             playwright = Playwright.create();
             browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
-                    .setHeadless(false) // 方便你在本地看动作
-                    .setSlowMo(500));   // 稍微慢一点，更稳
+                    .setHeadless(false) // false有头 ，true 无头
+                    .setSlowMo(500));
 
             context = browser.newContext(new Browser.NewContextOptions()
                     .setViewportSize(1920, 1080)
