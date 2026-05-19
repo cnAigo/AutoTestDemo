@@ -7,71 +7,73 @@ import com.microsoft.playwright.TimeoutError;
 import com.microsoft.playwright.options.AriaRole;
 import com.microsoft.playwright.options.MouseButton;
 import com.microsoft.playwright.options.WaitForSelectorState;
-import java.util.regex.Matcher;
+import config.TestConstants;
+
 import java.util.regex.Pattern;
 
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat;
 
+/**
+ * 需求管理页面 - 纯 UI 操作封装
+ * 所有方法只做页面交互，不直接发 API 请求
+ */
 public class RequirementPage {
+
     private final Page page;
 
     public RequirementPage(Page page) {
         this.page = page;
     }
 
-    // ==========================================
-    // 🧱 基础操作积木 (UI交互细节全在这里)
-    // ==========================================
-
+    // ======================== 树节点基础操作 ========================
     /**
-     * 积木：右键点击左侧树状图的指定节点
+     * 等待指定名称的树节点出现在可视区域
      */
+    public void waitForTreeNodeVisible(String nodeName) {
+        page.locator(".el-tree-node:visible")
+                .filter(new Locator.FilterOptions().setHasText(nodeName))
+                .first()
+                .waitFor(new Locator.WaitForOptions()
+                        .setState(com.microsoft.playwright.options.WaitForSelectorState.VISIBLE)
+                        .setTimeout(15000));
+    }
+
+    /** 右键点击左侧树节点 */
     public void rightClickTreeNode(String nodeName) {
-        Locator node = page.getByRole(AriaRole.TREEITEM, new Page.GetByRoleOptions().setName(nodeName)).locator("div").first();
+        Locator node = page.getByRole(AriaRole.TREEITEM,
+                new Page.GetByRoleOptions().setName(nodeName)).locator("div").first();
         node.click(new Locator.ClickOptions().setButton(MouseButton.RIGHT));
     }
 
-    /**
-     * 积木：双击左侧树状图的指定节点
-     */
+    /** 双击左侧树节点 */
     public void doubleClickTreeNode(String nodeName) {
-        page.getByRole(AriaRole.TREEITEM, new Page.GetByRoleOptions().setName(nodeName)).first().dblclick();
+        page.getByRole(AriaRole.TREEITEM,
+                new Page.GetByRoleOptions().setName(nodeName)).first().dblclick();
     }
 
-
-
-    /**
-     * 积木：点击右键弹出的菜单项（如“新建”、“删除”）
-     */
+    /** 点击右键菜单项（新建、删除等） */
     public void clickContextMenu(String menuName) {
-        page.locator("span").filter(new Locator.FilterOptions().setHasText(Pattern.compile("^" + menuName + "$"))).click();
+        page.locator("span")
+                .filter(new Locator.FilterOptions().setHasText(Pattern.compile("^" + menuName + "$")))
+                .click();
     }
 
-
-
-
-    /**
-     * 积木：智能展开树节点 (修改为接收节点名称，不再接收 Locator)
-     */
+    /** 智能展开树节点（已展开则跳过） */
     public void ensureNodeExpanded(String nodeName) {
-        Locator node = page.getByRole(AriaRole.TREEITEM, new Page.GetByRoleOptions().setName(nodeName)).locator("div").first();
+        Locator node = page.getByRole(AriaRole.TREEITEM,
+                new Page.GetByRoleOptions().setName(nodeName)).locator("div").first();
         Locator expandArrow = node.locator(".el-tree-node__expand-icon").first();
-        String classAttribute = expandArrow.getAttribute("class");
-        if (classAttribute != null && !classAttribute.contains("expanded") && !classAttribute.contains("is-leaf")) {
+        String cls = expandArrow.getAttribute("class");
+        if (cls != null && !cls.contains("expanded") && !cls.contains("is-leaf")) {
             expandArrow.click();
         }
     }
 
-
-    // ==========================================
-    // 🧱 复合业务积木 (你原来写好的优秀逻辑)
-    // ==========================================
+    // ======================== 创建（UI操作 + 拦截响应） ========================
 
     /**
-     * 积木：点击“文件夹”，拦截并解析API返回的新建文件夹名称
-     */
-    /**
-     * 👑 超级积木：点击“文件夹”，不仅拦截默认名称，还拦截系统生成的真实 objectId
+     * 右键菜单 → 点击"文件夹" → 拦截API响应 → 返回 [自动生成的名称, objectId]
+     * 虽然读了网络响应，但触发方式是 UI 交互，所以归类为 UI 操作
      */
     public String[] createFolderAndGetDetails() {
         Response response = page.waitForResponse(
@@ -79,33 +81,15 @@ public class RequirementPage {
                 () -> page.getByText("文件夹", new Page.GetByTextOptions().setExact(true)).click()
         );
 
-        String responseBody = response.text();
+        String body = response.text();
+        String title = extractJsonValue(body, "title");
+        String objectId = extractJsonValue(body, "objectId");
 
-        String title = "";
-        String objectId = "";
-
-        try {
-            // 1. 精准提取 title
-            int titleStart = responseBody.indexOf("\"title\":\"") + 9;
-            int titleEnd = responseBody.indexOf("\"", titleStart);
-            title = responseBody.substring(titleStart, titleEnd);
-
-            // 2. 🌟 核心修复点：精准提取 objectId！
-            int idStart = responseBody.indexOf("\"objectId\":\"") + 12;
-            int idEnd = responseBody.indexOf("\"", idStart);
-            objectId = responseBody.substring(idStart, idEnd);
-
-        } catch (Exception e) {
-            System.out.println("⚠️ 解析 JSON 失败！请检查返回值格式: " + responseBody);
-        }
-
-        // 把名字和真实ID打包返回
         return new String[]{title, objectId};
     }
 
-
     /**
-     * 积木：点击“文件夹”，拦截并解析API返回的新建需求规格名称
+     * 右键菜单 → 点击"文件夹" → 拦截响应 → 返回自动生成的名称
      */
     public String createDocumentAndGetName() {
         Response response = page.waitForResponse(
@@ -113,172 +97,191 @@ public class RequirementPage {
                 () -> page.getByText("文件夹", new Page.GetByTextOptions().setExact(true)).click()
         );
 
-        String responseBody = response.text();
-        int startIndex = responseBody.indexOf("\"title\":\"") + 9;
-        int endIndex = responseBody.indexOf("\"", startIndex);
-        return responseBody.substring(startIndex, endIndex);
+        return extractJsonValue(response.text(), "title");
     }
 
     /**
-     * 积木：通用的重命名逻辑
-     */
-    public void renameFolder(String originalName, String targetName) {
-        // 1. 加上精确匹配，精准定位左侧树节点
-        Locator folderItem = page.getByRole(AriaRole.TREEITEM, new Page.GetByRoleOptions().setName(originalName).setExact(true)).locator("div").first();
-        folderItem.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE));
-
-        // 2. 点击选中该节点
-        folderItem.click();
-
-        // 3. 只在该节点内部找文本并点击（触发改名），拒绝全局搜索误伤！
-        folderItem.getByText(originalName).click();
-
-        // 4. 等待输入框出现并填入新名字
-        Locator editInput = page.locator("input:focus");
-        editInput.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE));
-        editInput.fill(targetName);
-
-        // 5. 点击根节点保存
-        page.getByRole(AriaRole.TREEITEM, new Page.GetByRoleOptions().setName("需求（根节点）")).locator("div").first().click();
-        page.waitForTimeout(500);
-
-        // 6. 验证新名字是否生效
-        Locator renamedFolder = page.locator(".el-tree-node:visible")
-                .filter(new Locator.FilterOptions().setHasText(targetName))
-                .first();
-        renamedFolder.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE));
-        assertThat(renamedFolder).isVisible();
-    }
-
-    /**
-     * 积木：自动删除指定的文件夹/文件
-     */
-    public void safeDeleteFolder(String folderName) {
-        Locator targetNode = page.getByRole(AriaRole.TREEITEM,
-                new Page.GetByRoleOptions().setName(folderName).setExact(true));
-
-        if (targetNode.count() == 0) return;
-        targetNode.scrollIntoViewIfNeeded();
-
-        // 阶段一：删除
-        targetNode.locator("div").first().click(new Locator.ClickOptions().setButton(MouseButton.RIGHT));
-        Locator deleteMenuBtn = page.getByText("删除", new Page.GetByTextOptions().setExact(true)).last();
-        deleteMenuBtn.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE));
-        deleteMenuBtn.click();
-        page.mouse().click(0, 0);
-        page.waitForTimeout(500);
-
-        // 阶段二：清除
-        targetNode.locator("div").first().click(new Locator.ClickOptions().setButton(MouseButton.RIGHT));
-        Locator clearMenuBtn = page.getByText("清除", new Page.GetByTextOptions().setExact(true)).last();
-        clearMenuBtn.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE));
-        clearMenuBtn.click();
-
-        // 阶段三：弹窗确认
-        try {
-            Locator confirmBtn = page.locator(".el-message-box__btns button, .el-dialog__footer button")
-                    .filter(new Locator.FilterOptions().setHasText("确定")).first();
-            confirmBtn.waitFor(new Locator.WaitForOptions().setTimeout(3000));
-            confirmBtn.focus();
-            confirmBtn.press("Space");
-        } catch (TimeoutError e) {
-            Locator fallbackConfirmBtn = page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("确定"));
-            fallbackConfirmBtn.waitFor(new Locator.WaitForOptions().setTimeout(3000));
-            fallbackConfirmBtn.click();
-        }
-
-        // 验证消失
-        try {
-            targetNode.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.HIDDEN).setTimeout(5000));
-        } catch (Exception ignored) {}
-        assertThat(targetNode).isHidden();
-    }
-
-
-    /**
-     * 积木：点击“新建”按钮 -> 弹出菜单 -> 点击“新增文件夹” -> 截获API返回的名字
+     * 顶部菜单 → 新建 → 新增文件夹 → 拦截响应 → 返回自动生成的名称
      */
     public String clickNewFolderDropdownAndGetName() {
-        // 1. 先点击那个“新建”主按钮
-        // 注意：这里建议用精确匹配，防止点到别的按钮
-        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("新建").setExact(true)).click();
+        page.getByRole(AriaRole.BUTTON,
+                new Page.GetByRoleOptions().setName("新建").setExact(true)).click();
 
-        // 2. 关键点：等待下拉菜单中的“新增文件夹”变为可见状态
-        // 这一步解决了你说的“间隔时间”问题，它是智能等待，弹出来的一瞬间就会继续
-        Locator folderOption = page.getByText("新增文件夹").last(); // 有时菜单项会重复，取最后一个比较稳
+        Locator folderOption = page.getByText("新增文件夹").last();
         folderOption.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE));
 
-        // 3. 盯着接口，点击“新增文件夹”选项
         Response response = page.waitForResponse(
                 res -> res.url().contains("/erm/add/addReqSpeFolder") && res.status() == 200,
                 () -> folderOption.click()
         );
 
-        // 4. 解析并返回名字（代码同前）
-        String responseBody = response.text();
-        int startIndex = responseBody.indexOf("\"title\":\"") + 9;
-        int endIndex = responseBody.indexOf("\"", startIndex);
-        return responseBody.substring(startIndex, endIndex);
+        return extractJsonValue(response.text(), "title");
     }
-    /**
-     * 公共方法：打开父文件夹并激活指定子文件夹的重命名输入框
-     * @param parentName 父文件夹名称
-     * @param targetName 要修改的子文件夹原名
-     */
-    private void openFolderAndActivateEdit(String parentName, String targetName) {
-        // 1. 展开左侧树（使用精确匹配防止冲突）
-        page.getByRole(AriaRole.TREEITEM, new Page.GetByRoleOptions().setName(parentName).setExact(true))
-                .locator("img").click();
 
-        // 2. 双击父节点确保右侧列表加载
-        page.getByRole(AriaRole.TREEITEM, new Page.GetByRoleOptions().setName(parentName).setExact(true))
-                .dblclick();
+    // ======================== 重命名 ========================
 
-        // 3. 点击右侧列表中的目标文件夹，激活编辑状态
-        // 注意：这里用 .cell-title 或者 pre 定位比较稳
+    /** 重命名树节点（选中 → 点击文字 → 输入新名 → 点击根节点保存） */
+    /** 重命名树节点（选中 → 点击文字 → 输入新名 → 点击根节点保存） */
+    public void renameFolder(String originalName, String newName) {
+        // 1. 先用 CSS 选择器找到包含该文本的节点（不依赖 role）
+        Locator node = page.locator(".el-tree-node")
+                .filter(new Locator.FilterOptions().setHasText(originalName))
+                .first();
+        node.waitFor(new Locator.WaitForOptions()
+                .setState(WaitForSelectorState.ATTACHED)
+                .setTimeout(15000));
+
+        // 2. 如果节点已经在编辑态（有 focus input），直接填
+        Locator focusedInput = page.locator("input:focus");
+        if (focusedInput.count() > 0 && focusedInput.isVisible()) {
+            focusedInput.press("Control+a");
+            focusedInput.fill(newName);
+            // 点击根节点保存
+            page.getByRole(AriaRole.TREEITEM,
+                            new Page.GetByRoleOptions().setName(TestConstants.ROOT_NODE))
+                    .locator("div").first().click();
+            page.waitForTimeout(500);
+        } else {
+            // 3. 不在编辑态，走正常双击激活流程
+            node.locator(".el-tree-node__label, .custom-tree-node").first().click();
+            page.waitForTimeout(300);
+            node.locator(".el-tree-node__label, .custom-tree-node").first().click();
+            page.waitForTimeout(300);
+
+            Locator editInput = page.locator("input:focus");
+            editInput.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE));
+            editInput.press("Control+a");
+            editInput.fill(newName);
+
+            page.getByRole(AriaRole.TREEITEM,
+                            new Page.GetByRoleOptions().setName(TestConstants.ROOT_NODE))
+                    .locator("div").first().click();
+            page.waitForTimeout(500);
+        }
+
+        // 4. 验证
+        Locator renamed = page.locator(".el-tree-node")
+                .filter(new Locator.FilterOptions().setHasText(newName)).first();
+        renamed.waitFor(new Locator.WaitForOptions()
+                .setState(WaitForSelectorState.VISIBLE)
+                .setTimeout(5000));
+        assertThat(renamed).isVisible();
+    }
+
+
+    // ======================== 删除（纯 UI） ========================
+
+    /** 右键删除 + 清除 + 弹窗确认 */
+    public void safeDeleteFolder(String folderName) {
+        Locator target = page.getByRole(AriaRole.TREEITEM,
+                new Page.GetByRoleOptions().setName(folderName).setExact(true));
+
+        if (target.count() == 0) return;
+        target.scrollIntoViewIfNeeded();
+
+        // 阶段一：删除
+        target.locator("div").first().click(new Locator.ClickOptions().setButton(MouseButton.RIGHT));
+        page.getByText("删除", new Page.GetByTextOptions().setExact(true)).last()
+                .waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE));
+        page.getByText("删除", new Page.GetByTextOptions().setExact(true)).last().click();
+        page.mouse().click(0, 0);
+        page.waitForTimeout(500);
+
+        // 阶段二：清除
+        target.locator("div").first().click(new Locator.ClickOptions().setButton(MouseButton.RIGHT));
+        page.getByText("清除", new Page.GetByTextOptions().setExact(true)).last()
+                .waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE));
+        page.getByText("清除", new Page.GetByTextOptions().setExact(true)).last().click();
+
+        // 阶段三：确认弹窗
+        try {
+            Locator confirm = page.locator(".el-message-box__btns button, .el-dialog__footer button")
+                    .filter(new Locator.FilterOptions().setHasText("确定")).first();
+            confirm.waitFor(new Locator.WaitForOptions().setTimeout(3000));
+            confirm.focus();
+            confirm.press("Space");
+        } catch (TimeoutError e) {
+            page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("确定"))
+                    .waitFor(new Locator.WaitForOptions().setTimeout(3000));
+            page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("确定")).click();
+        }
+
+        try {
+            target.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.HIDDEN).setTimeout(5000));
+        } catch (Exception ignored) {}
+        assertThat(target).isHidden();
+    }
+
+    // ======================== 描述编辑 ========================
+
+    /** 展开父节点并激活子节点的编辑状态 */
+    public void openFolderAndActivateEdit(String parentName, String targetName) {
+        page.getByRole(AriaRole.TREEITEM,
+                new Page.GetByRoleOptions().setName(parentName).setExact(true)).locator("img").click();
+
+        page.getByRole(AriaRole.TREEITEM,
+                new Page.GetByRoleOptions().setName(parentName).setExact(true)).dblclick();
+
         page.getByRole(AriaRole.ROW, new Page.GetByRoleOptions().setName(targetName))
                 .locator(".cell-title").first().click();
 
-        // 双击文字激活输入框
         page.getByText(targetName).dblclick();
     }
 
-    /**
-     * 积木：通过 API 创建需求规格，并返回其 objectId
-     * @param projectId 项目 ID
-     * @param parentId 父节点 ID
-     * @return 创建成功的需求规格 objectId
-     */
-    public String createDocumentViaAPI(String projectId, String parentId) {
-        String jsonPayload = """
-            {
-                "parentId": "%s",
-                "parentType": "reqSpeFolder",
-                "projectId": "%s"
-            }
-            """.formatted(parentId, projectId);
+    // ======================== 内部工具 ========================
 
-        // 注意：路径已根据之前的报错反馈去掉了多余的 /dev-api
-        com.microsoft.playwright.APIResponse response = page.request().post(
-                config.TestConfig.API_PREFIX + "/erm/add/addReqSpe",
-                com.microsoft.playwright.options.RequestOptions.create()
-                        .setHeader("Content-Type", "application/json")
-                        .setData(jsonPayload)
-        );
-
-        org.junit.jupiter.api.Assertions.assertEquals(200, response.status(), "API 创建需求规格失败");
-
-        String responseText = response.text();
-        String docId = "";
+    /** 从 JSON 字符串中提取指定字段值 */
+    private String extractJsonValue(String json, String fieldName) {
         try {
-            // 解析返回的 JSON 获取 objectId
-            int idStart = responseText.indexOf("\"objectId\":\"") + 12;
-            int idEnd = responseText.indexOf("\"", idStart);
-            docId = responseText.substring(idStart, idEnd);
+            int start = json.indexOf("\"" + fieldName + "\":\"") + fieldName.length() + 4;
+            int end = json.indexOf("\"", start);
+            return json.substring(start, end);
         } catch (Exception e) {
-            System.err.println("⚠️ 提取需求规格 ID 失败: " + responseText);
+            System.out.println("⚠️ 解析字段 [" + fieldName + "] 失败: " + json);
+            return "";
         }
-        return docId;
+    }
+
+    // ======================== RequirementPage.java 新增 ========================
+
+    /**
+     * 积木：点击树节点的文字，激活重命名输入框
+     */
+    public void activateRenameInput(String nodeName) {
+        Locator node = page.getByRole(AriaRole.TREEITEM,
+                        new Page.GetByRoleOptions().setName(nodeName).setExact(true))
+                .locator("div").first();
+        node.click();
+        node.getByText(nodeName).click();
+    }
+
+    /**
+     * 积木：在当前激活的输入框中填入新名字，然后点击根节点保存
+     * 注意：不包含断言，适合"期望成功"和"期望失败"的场景都能用
+     */
+    public String fillRenameAndSave(String newName) {
+        // 1. 填入新名字
+        Locator editInput = page.locator("input:focus");
+        editInput.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE));
+        editInput.press("Control+a");
+        editInput.fill(newName);
+
+        // 2. 点击根节点触发保存
+        page.getByRole(AriaRole.TREEITEM,
+                        new Page.GetByRoleOptions().setName("需求（根节点）"))
+                .locator("div").first().click();
+        page.waitForTimeout(1000);
+
+        // 3. 尝试捕获错误提示（有的话就返回，没有就返回空）
+        try {
+            Locator toast = page.locator(".el-message--error, .el-message__content")
+                    .first();
+            if (toast.isVisible()) {
+                return toast.textContent();
+            }
+        } catch (Exception ignored) {}
+
+        return "";
     }
 
 }

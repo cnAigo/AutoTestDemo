@@ -39,19 +39,25 @@
             <artifactId>janino</artifactId>
         </dependency>
 
+        <!-- JUnit 5 Jupiter -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>6.0.3</version>
+            <version>5.10.2</version>
+            <scope>test</scope>
         </dependency>
 
+        <!-- JUnit Platform Launcher -->
         <dependency>
             <groupId>org.junit.platform</groupId>
             <artifactId>junit-platform-launcher</artifactId>
-            <version>6.0.3</version>
+            <version>1.10.2</version>
+            <scope>test</scope>
         </dependency>
 
+
     </dependencies>
+
 
     <build>
         <plugins>
@@ -66,6 +72,19 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
+                </configuration>
+            </plugin>
+            <!-- 执行顺序 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <runOrder>alphabetical</runOrder>
+                    <includes>
+                        <include>**/RequirementTest.java</include>
+                        <include>**/ReqTest.java</include>
+                        <include>**/CleanupTest.java</include>
+                    </includes>
                 </configuration>
             </plugin>
         </plugins>

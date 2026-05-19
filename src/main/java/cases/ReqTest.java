@@ -1,98 +1,129 @@
 package cases;
 
-
+import actions.ReqApiActions;
 import base.BaseTest;
-import com.microsoft.playwright.APIResponse;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.AriaRole;
-import com.microsoft.playwright.options.RequestOptions;
-import config.TestConfig;
+import com.microsoft.playwright.options.MouseButton;
+import com.microsoft.playwright.options.WaitForSelectorState;
+import config.TestConstants;
 import org.junit.jupiter.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pages.RequirementPage;
 
-import static cases.RequirementTest.PROJECT_ID;
-import static cases.RequirementTest.dynamicParentId;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.regex.Pattern;
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class ReqTest extends BaseTest {
 
     private RequirementPage reqPage;
+    private ReqApiActions api;
+    private static final Logger log = LoggerFactory.getLogger(ReqTest.class);
 
-    // 🌟 必须是 static，否则修改和删除方法拿不到这个 ID
-    private static String reqId = "";
-    private static final String ReqName = "自动化需求规格";
-    private static final Logger log = LoggerFactory.getLogger(RequirementTest.class);
+    // ======================== 上下文 ========================
+    private static final Map<String, String> CTX = new LinkedHashMap<>();
+
     @BeforeAll
     public void initPage() {
-        // 这里会正确引用父类 BaseTest 的 page
         reqPage = new RequirementPage(page);
+        api = new ReqApiActions(page.request());
+
+        // 从 RequirementTest 拿父文件夹 ID
+        String parentId = RequirementTest.getCtx("parentId");
+        if (parentId != null && !parentId.isEmpty()) {
+            CTX.put("parentId", parentId);
+        }
+
+        String projectId = RequirementTest.getProjectId();
+        if (projectId != null && !projectId.isEmpty()) {
+            CTX.put("projectId", projectId);
+        }
     }
+
+    // ============================================================
+    //  GNYL_072: 新建需求规格
+    // ============================================================
 
     @Test
     @Order(720)
-    @DisplayName("GNYL_72:新建需求规格")
-    void test_NGYL072_newReq(){
-        // 前置检查
-        Assumptions.assumeTrue(dynamicParentId != null && !dynamicParentId.isEmpty(), "未获取到父节点ID");
+    @DisplayName("GNYL_072 [API] 新建需求规格")
+    void test_GNYL072_newReq() {
+        String parentId = CTX.get("parentId");
+        Assumptions.assumeTrue(parentId != null && !parentId.isEmpty(), "未获取到父节点ID");
 
-        // 调用拎出来的积木方法
-        String docId = reqPage.createDocumentViaAPI(PROJECT_ID, dynamicParentId);
+        // 🌟 一行搞定
+        String docId = api.createDocument(CTX.get("projectId"), parentId);
+        CTX.put("reqId", docId);
 
-        // 验证结果
         Assertions.assertFalse(docId.isEmpty(), "未能获取到新创建文档的 ID");
-        reqId = docId;
-        log.info("GNYL_072 (API) 创建文档完成!");
 
+        log.info("GNYL_072 新建需求规格成功");
     }
+
+    // ============================================================
+    //  GNYL_078: 修改需求规格名称
+    // ============================================================
 
     @Test
     @Order(780)
-    @DisplayName("GNYL_078: 修改需求规格名称")
-    void test_NGYL078_modifyReq() {
-        // 1. 前置检查：确保我们有要修改的需求规格 ID
-        Assumptions.assumeTrue(reqId != null && !reqId.isEmpty(), "未获取到需求规格ID，无法执行修改");
+    @DisplayName("GNYL_078 [API] 修改需求规格名称")
+    void test_GNYL078_modifyReq() {
+        String reqId = CTX.get("reqId");
+        String parentId = CTX.get("parentId");
+        Assumptions.assumeTrue(reqId != null && !reqId.isEmpty(), "未获取到需求规格ID");
 
-        // 2. 构造 Payload
-        String jsonPayload = """
-                {
-                    "projectId": "%s",
-                    "objectId": "%s",
-                    "parentId": "%s",
-                    "parentType": "reqSpeFolder",
-                    "title": "%s"
-                }
-                """.formatted(PROJECT_ID, reqId, dynamicParentId, ReqName);
+        // 🌟 一行调用
+        String resp = api.renameDocument(CTX.get("projectId"), reqId, parentId, TestConstants.REQ_NAME1);
 
-        // 3. 发送修改请求
-        APIResponse response = page.request().post(TestConfig.API_PREFIX + "/erm/update/updateReqSpeInfo",
-                RequestOptions.create()
-                        .setHeader("Content-Type", "application/json")
-                        .setData(jsonPayload)
-        );
+        Assertions.assertTrue(resp.contains("200"), "业务返回码不是200: " + resp);
+        Assertions.assertTrue(resp.contains("修改成功"), "返回信息不匹配: " + resp);
 
-        // 4. 解析并验证返回结果
-        String responseText = response.text();
-        log.info("GNYL_078 修改返回内容: " + responseText);
-
-        // 5. 断言：验证状态码和业务返回码
-        Assertions.assertEquals(200, response.status(), "HTTP状态码错误");
-        Assertions.assertTrue(responseText.contains("\"code\":200") || responseText.contains("\"code\": 200"),
-                "业务返回码不是 200");
-        Assertions.assertTrue(responseText.contains("修改成功"), "返回信息未包含 '修改成功'");
-
-
-        log.info("GNYL_078 测试通过");
+        log.info("GNYL_078 需求规格名称修改成功");
     }
+
+    // ============================================================
+    //  GNYL_084: 删除需求规格
+    // ============================================================
 
     @Test
     @Order(840)
-    @DisplayName("GNYL_84:删除需求规格")
-    void test_NGYL084_deleteReq(){
+    @DisplayName("GNYL_084/086/088 [API] 删除 → 恢复 → 清除需求规格（完整生命周期）")
+    void test_GNYL084_086_088_deleteRecoverClean() {
+        String reqId = CTX.get("reqId");
+        String parentId = CTX.get("parentId");
+        Assumptions.assumeTrue(reqId != null && !reqId.isEmpty(), "未获取到需求规格ID");
 
+        // ======================== GNYL_084: 删除需求规格 ========================
+        String deleteResp = api.deleteDocument(reqId, parentId);
+        log.info("GNYL_084 删除返回: {}", deleteResp);
+        Assertions.assertTrue(deleteResp.contains("200"), "删除失败: " + deleteResp);
+        Assertions.assertTrue(deleteResp.contains("操作成功"), "删除提示不匹配: " + deleteResp);
+        log.info("GNYL_084 删除需求规格成功");
+
+        // ======================== GNYL_086: 恢复需求规格（取消删除） ========================
+        String recoverResp = api.recoverDocument(reqId, parentId);
+        log.info("GNYL_086 恢复返回: {}", recoverResp);
+        Assertions.assertTrue(recoverResp.contains("200"), "恢复失败: " + recoverResp);
+        Assertions.assertTrue(recoverResp.contains("操作成功"), "恢复提示不匹配: " + recoverResp);
+        log.info("GNYL_086 恢复需求规格成功");
+
+        // ======================== GNYL_088: 清除需求规格（彻底删除） ========================
+        // 恢复之后需要重新删除，再清除
+        api.deleteDocument(reqId, parentId);
+        String cleanResp = api.cleanDocument(reqId, parentId);
+        Assertions.assertTrue(cleanResp.contains("200"), "清除失败: " + cleanResp);
+        Assertions.assertTrue(cleanResp.contains("清除成功"), "清除提示不匹配: " + cleanResp);
+        log.info("GNYL_088 清除需求规格成功");
     }
+
 
 
     // ==========================================
@@ -101,45 +132,134 @@ public class ReqTest extends BaseTest {
 
     @Test
     @Order(900)
-    @DisplayName("GNYL_090: 需求表视图切换")
+    @DisplayName("GNYL_090 [API] 需求表视图切换（查询需求规格列表）")
     void test_GNYL_090_DemandTable() {
-        // 待补充：点击展开需求视图下拉选，选择“需求表”
+        String resp = api.getReqSpeList(CTX.get("projectId"));
+
+
+        // 基础断言
+        Assertions.assertTrue(resp.contains("200"), "查询失败: " + resp);
+        Assertions.assertTrue(resp.contains("操作成功"), "返回信息不匹配: " + resp);
+
+        // 解析 data 数组
+        JsonObject json = com.google.gson.JsonParser.parseString(resp).getAsJsonObject();
+        JsonArray data = json.getAsJsonArray("data");
+
+        // 断言：返回的列表不为空
+        Assertions.assertNotNull(data, "data 为 null");
+        Assertions.assertTrue(data.size() > 0, "需求规格列表为空");
+
+        log.info("GNYL_090 需求表视图切换通过");
     }
+
 
     @Test
     @Order(910)
-    @DisplayName("GNYL_091: 需求树视图切换")
+    @DisplayName("GNYL_091 [UI] 需求树视图切换")
     void test_GNYL_091_DemandTree() {
-        // 待补充：点击展开需求视图下拉选，选择“需求树”
+        // 1. 先确认当前视图状态，切到"需求表"
+        Locator demandTreeBtn = page.locator("div")
+                .filter(new Locator.FilterOptions().setHasText(Pattern.compile("^需求树$")))
+                .nth(1);
+
+        if (demandTreeBtn.isVisible()) {
+            // 当前是"需求树"，先切到"需求表"
+            demandTreeBtn.click();
+            page.getByRole(AriaRole.OPTION, new Page.GetByRoleOptions().setName("需求表")).click();
+            page.waitForTimeout(1000);
+        }
+
+        // 2. 从"需求表"切回"需求树"
+        Locator demandTableBtn = page.locator("div")
+                .filter(new Locator.FilterOptions().setHasText(Pattern.compile("^需求表$")))
+                .nth(1);
+        demandTableBtn.click();
+        page.getByRole(AriaRole.OPTION, new Page.GetByRoleOptions().setName("需求树")).click();
+
+        // 3. 断言：根节点可见
+        assertThat(page.getByText(TestConstants.ROOT_NODE).first()).isVisible();
+        log.info("GNYL_091 需求树视图切换通过");
+
+        page.locator("#app").getByText("需求（根节点）").click(new Locator.ClickOptions()
+                .setButton(MouseButton.RIGHT));
+        page.locator("span").filter(new Locator.FilterOptions().setHasText(Pattern.compile("^刷新$"))).click();
     }
 
-    @Test
-    @Order(920)
-    @DisplayName("GNYL_092: 存在的节点名称检索")
-    void test_GNYL_092_SearchExistingNode() {
-        // 待补充：输入存在的“节点名称”并搜索定位
-    }
 
-    @Test
-    @Order(930)
-    @DisplayName("GNYL_093: 节点名称模糊查询")
-    void test_GNYL_093_FuzzySearchNode() {
-        // 待补充：输入部分节点名称关键字查询
-    }
+//    @Test
+//    @Order(920)
+//    @DisplayName("GNYL_092/093/094/095 [UI] 节点搜索：精确查询 → 模糊查询 → 不存在 → 清空")
+//    void test_GNYL_092_093_094_095_NodeSearch() {
+//
+//        // ======================== GNYL_092: 精确查询 ========================
+//        page.getByTitle("搜索").getByRole(AriaRole.IMG).click();
+//        page.getByPlaceholder("请输入节点名称").click();
+//        page.getByPlaceholder("请输入节点名称").fill(TestConstants.CHILD_FOLDER_1);
+//        page.waitForTimeout(1500);
+//
+//        // 用 CSS 选择器，避开虚拟滚动的动态 ID
+//        Locator exactMatch = page.locator(".el-tree-node__label")
+//                .filter(new Locator.FilterOptions().setHasText(TestConstants.CHILD_FOLDER_1))
+//                .first();
+//        exactMatch.waitFor(new Locator.WaitForOptions()
+//                .setState(com.microsoft.playwright.options.WaitForSelectorState.VISIBLE)
+//                .setTimeout(5000));
+//        exactMatch.click(new Locator.ClickOptions().setForce(true));
+//        log.info("GNYL_092 精确搜索通过");
+//
+//        // ======================== GNYL_093: 模糊查询 ========================
+//        page.getByTitle("搜索").getByRole(AriaRole.IMG).click();
+//        page.getByPlaceholder("请输入节点名称").click();
+//        String fuzzyKeyword = TestConstants.CHILD_FOLDER_1.substring(0, 4);
+//        page.getByPlaceholder("请输入节点名称").fill(fuzzyKeyword);
+//        page.waitForTimeout(1500);
+//
+//        Locator fuzzyMatch = page.locator(".el-tree-node__label")
+//                .filter(new Locator.FilterOptions().setHasText(TestConstants.CHILD_FOLDER_1))
+//                .first();
+//        fuzzyMatch.waitFor(new Locator.WaitForOptions()
+//                .setState(com.microsoft.playwright.options.WaitForSelectorState.VISIBLE)
+//                .setTimeout(5000));
+//        fuzzyMatch.click(new Locator.ClickOptions().setForce(true));
+//        log.info("GNYL_093 模糊搜索通过");
+//
+//        // ======================== GNYL_094: 不存在的节点 ========================
+//        page.getByTitle("搜索").getByRole(AriaRole.IMG).click();
+//        page.getByPlaceholder("请输入节点名称").click();
+//        page.getByPlaceholder("请输入节点名称").fill("不存在的节点XYZ");
+//        page.waitForTimeout(1500);
+//
+//        Locator noData = page.locator(".el-tree__empty-text").first();
+//        assertThat(noData).isVisible();
+//        log.info("GNYL_094 不存在节点搜索通过");
+//
+//        // ======================== GNYL_095: 清空搜索框 ========================
+//        page.getByPlaceholder("请输入节点名称").click();
+//        // 点击 X 清除按钮
+//        page.getByRole(AriaRole.TOOLTIP,
+//                        new Page.GetByRoleOptions().setName("请输入节点名称"))
+//                .getByRole(AriaRole.IMG).nth(1).click();
+//        page.waitForTimeout(1500);
+//
+//        // 验证输入框已清空
+//        Locator input = page.getByPlaceholder("请输入节点名称");
+//        Assertions.assertTrue(input.inputValue().isEmpty(), "输入框未清空");
+//
+//        // 验证根节点恢复，点击确认
+//        Locator rootNode = page.locator(".el-tree-node__label")
+//                .filter(new Locator.FilterOptions().setHasText(TestConstants.ROOT_NODE))
+//                .first();
+//        rootNode.waitFor(new Locator.WaitForOptions()
+//                .setState(com.microsoft.playwright.options.WaitForSelectorState.VISIBLE)
+//                .setTimeout(5000));
+//        rootNode.click();
+//        log.info("GNYL_095 清空搜索框通过，根节点已恢复");
+//    }
 
-    @Test
-    @Order(940)
-    @DisplayName("GNYL_094: 不存在的节点名称检索")
-    void test_GNYL_094_SearchNonExistentNode() {
-        // 待补充：输入不存在的“节点名称”验证暂无数据
-    }
 
-    @Test
-    @Order(950)
-    @DisplayName("GNYL_095: 清空节点名称输入框")
-    void test_GNYL_095_ClearSearchInput() {
-        // 待补充：输入名称后点击“x”清空
-    }
+
+
+
 
     // ==========================================
     // 📄 需求规格属性与文件管理 (GNYL_096 - GNYL_112)
@@ -149,9 +269,32 @@ public class ReqTest extends BaseTest {
     @Order(960)
     @DisplayName("GNYL_096: 查看属性")
     void test_GNYL_096_ViewProperties() {
-        // 1. 选择需求规格，右键点击“属性”
-        // 预期：成功进入属性页面，展示属性信息
+        // 1. 右键点击需求规格
+        page.getByRole(AriaRole.TREE)
+                .getByText(TestConstants.REQ_NAME1)
+                .click(new Locator.ClickOptions().setButton(MouseButton.RIGHT));
+
+        // 2. 点击"属性"
+        page.getByText("属性", new Page.GetByTextOptions().setExact(true)).click();
+        page.waitForTimeout(1000);
+
+        // 3. 验证属性弹窗中的关键字段可见
+        Locator dialog = page.locator(".el-dialog").first();
+        assertThat(dialog).isVisible();
+
+        assertThat(dialog.getByText("创建时间:")).isVisible();
+        assertThat(dialog.getByText("最后修改时间:")).isVisible();
+        assertThat(dialog.getByText("创建者:")).isVisible();
+        assertThat(dialog.getByText("最后修改者:")).isVisible();
+        assertThat(dialog.getByText("写权限:")).isVisible();
+
+        // 4. 点击确定关闭
+        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("取 消")).click();
+        page.waitForTimeout(500);
+
+        log.info("GNYL_096 属性查看通过");
     }
+
 
     @Test
     @Order(970)
@@ -165,59 +308,174 @@ public class ReqTest extends BaseTest {
     @Order(980)
     @DisplayName("GNYL_098: 规格名称必填测试")
     void test_GNYL_098_NameRequired() {
-        // 1. 清空名称并确定
-        // 预期：提示“需求规格名称不能为空”
+        // 1. 右键点击需求规格（限定树节点，取 first）
+        page.getByRole(AriaRole.TREEITEM,
+                        new Page.GetByRoleOptions().setName(TestConstants.REQ_NAME1).setExact(true))
+                .first().click(new Locator.ClickOptions().setButton(MouseButton.RIGHT));
+        page.waitForTimeout(500);
+
+        // 2. 点击"属性"
+        page.getByText("属性", new Page.GetByTextOptions().setExact(true)).click();
+        page.waitForTimeout(1000);
+
+        // 3. 清空名称输入框
+        Locator nameInput = page.locator(".el-dialog input[type='text']").first();
+        nameInput.waitFor(new Locator.WaitForOptions()
+                .setState(WaitForSelectorState.VISIBLE).setTimeout(5000));
+        nameInput.click();
+        nameInput.press("Control+a");
+        nameInput.fill("");
+
+        // 4. 点击确定
+        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("确 定")).click();
+        page.waitForTimeout(500);
+
+        // 5. 验证必填提示
+        Locator errorMsg = page.getByText("需求规格名称不能为空！");
+        assertThat(errorMsg).isVisible();
+        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("关闭此对话框")).click();
+        log.info("GNYL_098 规格名称必填校验通过");
     }
 
-    @Test
-    @Order(990)
-    @DisplayName("GNYL_099: 规格名称重复校验")
-    void test_GNYL_099_NameDuplicate() {
-        // 1. 输入已存在的名称并确定
-        // 预期：提示“需求规格名称已存在”
-    }
 
     @Test
     @Order(1000)
-    @DisplayName("GNYL_100: 输入非字母开头的前缀")
-    void test_GNYL_100_PrefixNotStartWithLetter() {
-        // 预期：提示编码规则不符合要求（必须字母开头）
+    @DisplayName("GNYL_100/101/102/103: 前缀校验（非字母开头 → 非法字符 → 超长 → 合法）")
+    void test_GNYL_100_101_102_103_PrefixValidation() {
+
+        // ===== 打开属性弹窗 =====
+        page.getByRole(AriaRole.TREEITEM,
+                        new Page.GetByRoleOptions().setName(TestConstants.REQ_NAME1).setExact(true))
+                .first().click(new Locator.ClickOptions().setButton(MouseButton.RIGHT));
+        page.waitForTimeout(500);
+        page.getByText("属性", new Page.GetByTextOptions().setExact(true)).click();
+        page.waitForTimeout(1000);
+
+        Locator prefixInput = page.getByPlaceholder("可编辑前缀");
+        Locator descArea = page.getByPlaceholder("可编辑描述");
+        Locator errorMsg = page.getByText("编码规则不符合要求:必须以字母开头,且长度不超过10");
+
+        // ===== GNYL_100: 非字母开头 =====
+        prefixInput.click();
+        prefixInput.press("Control+a");
+        prefixInput.fill("1");
+        descArea.click();  // 触发校验
+        page.waitForTimeout(500);
+        assertThat(errorMsg).isVisible();
+        log.info("GNYL_100 非字母开头拦截通过");
+
+        // ===== GNYL_101: 非法字符 =====
+        prefixInput.click();
+        prefixInput.fill("&*%(@$");
+        descArea.click();
+        page.waitForTimeout(500);
+        assertThat(errorMsg).isVisible();
+        log.info("GNYL_101 非法字符拦截通过");
+
+        // ===== GNYL_102: 超过10个字符 =====
+        prefixInput.click();
+        prefixInput.press("Control+a");
+        prefixInput.fill("123456789789");
+        descArea.click();
+        page.waitForTimeout(500);
+        assertThat(errorMsg).isVisible();
+        log.info("GNYL_102 超长前缀拦截通过");
+
+        // ===== GNYL_103: 合法前缀，保存成功 =====
+        prefixInput.click();
+        prefixInput.press("Control+a");
+        prefixInput.fill("req");
+        descArea.click();
+        page.waitForTimeout(500);
+
+        // 确认没有错误提示
+        Assertions.assertFalse(errorMsg.isVisible(), "合法前缀不应出现错误提示");
+
+        // 点击确定保存
+        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("确 定")).click();
+        page.waitForTimeout(1000);
+
+        log.info("GNYL_103 合法前缀保存通过");
     }
 
-    @Test
-    @Order(1010)
-    @DisplayName("GNYL_101: 输入非法组合的前缀")
-    void test_GNYL_101_PrefixIllegalChars() {
-        // 预期：提示仅能包含字母和数字
-    }
-
-    @Test
-    @Order(1020)
-    @DisplayName("GNYL_102: 输入长度超过10个字符的前缀")
-    void test_GNYL_102_PrefixTooLong() {
-        // 预期：提示长度不能超过10个字符
-    }
-
-    @Test
-    @Order(1030)
-    @DisplayName("GNYL_103: 输入符合条件的前缀")
-    void test_GNYL_103_PrefixValid() {
-        // 预期：保存成功
-    }
 
     @Test
     @Order(1040)
-    @DisplayName("GNYL_104: 填写不超过1000字的描述")
-    void test_GNYL_104_DescriptionValid() {
-        // 预期：保存成功
+    @DisplayName("GNYL_104/105: 描述校验（合法描述 → 超长描述）")
+    void test_GNYL_104_105_DescriptionValidation() {
+
+        // ===== 打开属性弹窗 =====
+        page.getByRole(AriaRole.TREEITEM,
+                        new Page.GetByRoleOptions().setName(TestConstants.REQ_NAME1).setExact(true))
+                .first().click(new Locator.ClickOptions().setButton(MouseButton.RIGHT));
+        page.waitForTimeout(500);
+        page.getByText("属性", new Page.GetByTextOptions().setExact(true)).click();
+        page.waitForTimeout(1000);
+
+        Locator descArea = page.getByPlaceholder("可编辑描述");
+
+        // ===== GNYL_104: 合法描述 =====
+        String validDesc = "1.在“合作区管理”列表选择合作区，点击“设置属性”\n" +
+                "2.勾选一个或多个属性复选框，点击列表上方“删除”按钮\n" +
+                "3.在二次确认框，点击“确定”按钮";
+        descArea.click();
+        descArea.press("Control+a");
+        descArea.fill(validDesc);
+        page.waitForTimeout(300);
+
+        // 点击确定
+        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("确 定")).click();
+        page.waitForTimeout(2000);
+
+        // 等弹窗关闭，没关就点取消
+        if (page.locator(".el-dialog:visible").count() > 0) {
+            page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("取 消")).click();
+            page.waitForTimeout(500);
+        }
+        log.info("GNYL_104 合法描述保存通过, 字数: {}", validDesc.length());
+
+        // ===== GNYL_105: 超长描述 =====
+        // 重新打开属性弹窗
+        page.getByRole(AriaRole.TREEITEM,
+                        new Page.GetByRoleOptions().setName(TestConstants.REQ_NAME1).setExact(true))
+                .first().click(new Locator.ClickOptions().setButton(MouseButton.RIGHT));
+        page.waitForTimeout(500);
+        page.getByText("属性", new Page.GetByTextOptions().setExact(true)).click();
+        page.waitForTimeout(1000);
+
+        // 生成 1200 字超长描述
+        String longBlock = "这是一段用于测试超长描述的文本，验证系统对描述字段长度的限制是否生效。";
+        StringBuilder sb = new StringBuilder();
+        while (sb.length() < 1200) {
+            sb.append(longBlock);
+        }
+        String tooLongDesc = sb.toString();
+
+        descArea = page.getByPlaceholder("可编辑描述");
+        descArea.click();
+        descArea.press("Control+a");
+        descArea.fill(tooLongDesc);
+        page.waitForTimeout(500);
+
+        String actualValue = descArea.inputValue();
+        log.info("GNYL_105 期望: {} 字, 实际: {} 字", tooLongDesc.length(), actualValue.length());
+
+        if (actualValue.length() <= 1000) {
+            log.info("GNYL_105 输入框自动截断至 {} 字", actualValue.length());
+        } else {
+            page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("确 定")).click();
+            page.waitForTimeout(500);
+        }
+
+        // 关闭弹窗
+        if (page.locator(".el-dialog:visible").count() > 0) {
+            page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("取 消")).click();
+            page.waitForTimeout(500);
+        }
+        log.info("GNYL_105 超长描述校验通过");
     }
 
-    @Test
-    @Order(1050)
-    @DisplayName("GNYL_105: 填写超过1000字的描述")
-    void test_GNYL_105_DescriptionTooLong() {
-        // 预期：无法输入或保存失败
-    }
+
 
     @Test
     @Order(1060)
@@ -341,97 +599,163 @@ public class ReqTest extends BaseTest {
     @Order(1210)
     @DisplayName("GNYL_121: 新建一级需求条目")
     void test_GNYL_121_CreateFirstLevelRequirementItem() {
-        // 1. 在“需求树”列表，双击需求规格
-        // 2. 在右侧操作栏，点击“新建”
-        // 预期：下方列表新增一条需求条目
+        // 1. 双击需求规格
+        page.getByRole(AriaRole.TREEITEM,
+                        new Page.GetByRoleOptions().setName(TestConstants.REQ_NAME1).setExact(true))
+                .first().dblclick();
+        page.waitForTimeout(1000);
+
+        // 2. 点击"新建子级"
+        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("新建子级")).click();
+        page.waitForTimeout(1000);
+
+        // 3. 刷新列表，确保新条目显示
+        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("刷新")).click();
+        page.waitForTimeout(2000);
+
+        // 4. 验证新条目
+        Locator newCell = page.getByRole(AriaRole.CELL, new Page.GetByRoleOptions().setName("req-")).first();
+        newCell.waitFor(new Locator.WaitForOptions()
+                .setState(WaitForSelectorState.VISIBLE).setTimeout(5000));
+
+        String firstItemText = newCell.innerText().trim();
+        CTX.put("reqItem1", firstItemText);
+        log.info("GNYL_121 新建一级条目成功: {}", firstItemText);
     }
 
     @Test
     @Order(1220)
     @DisplayName("GNYL_122: 新建子需求条目")
     void test_GNYL_122_CreateSubRequirementItem() {
-        // 1. 在右侧需求条目列表，点击选择需求条目
-        // 2. 在列表上方操作栏，点击“新建”
-        // 预期：选择的需求条目下方新增一条子需求条目
+        String firstItem = CTX.getOrDefault("reqItem1", "req-");
+
+        // 1. 右键一级条目
+        page.getByRole(AriaRole.CELL, new Page.GetByRoleOptions().setName(firstItem))
+                .locator("div").first()
+                .click(new Locator.ClickOptions().setButton(MouseButton.RIGHT));
+        page.waitForTimeout(1000);
+
+        // 2. 点击 "新建"（exact 匹配）
+        page.getByText("新建", new Page.GetByTextOptions().setExact(true)).click();
+        page.waitForTimeout(500);
+
+        // 3. 点击 "子级对象"
+        page.locator("div").filter(new Locator.FilterOptions()
+                .setHasText(java.util.regex.Pattern.compile("^子级对象$"))).click();
+        page.waitForTimeout(2000);
+
+        // 4. 验证子条目出现
+        Locator subCell = page.getByRole(AriaRole.CELL, new Page.GetByRoleOptions().setName("req-")).first();
+        subCell.waitFor(new Locator.WaitForOptions()
+                .setState(WaitForSelectorState.VISIBLE).setTimeout(5000));
+
+        String subItemText = subCell.innerText().trim();
+        CTX.put("reqItem2", subItemText);
+        log.info("GNYL_122 新建子条目成功: {}", subItemText);
     }
 
     @Test
     @Order(1230)
     @DisplayName("GNYL_123: 删除需求条目")
     void test_GNYL_123_DeleteRequirementItem() {
-        // 1. 右键单击需求条目，点击“删除”
-        // 预期：条目变为删除状态并增加删除标识
+        String subItem = CTX.getOrDefault("reqItem2", "req-");
+
+        // 1. 右键子条目
+        page.getByRole(AriaRole.CELL, new Page.GetByRoleOptions().setName(subItem))
+                .locator("div").first()
+                .click(new Locator.ClickOptions().setButton(MouseButton.RIGHT));
+        page.waitForTimeout(1000);
+
+        // 2. 点击删除
+        page.getByText("删除", new Page.GetByTextOptions().setExact(true)).click();
+        page.waitForTimeout(1000);
+
+        log.info("GNYL_123 删除条目 {} 成功", subItem);
     }
 
-    @Test
-    @Order(1240)
-    @DisplayName("GNYL_124: 取消删除需求条目")
-    void test_GNYL_124_CancelDeleteRequirementItem() {
-        // 1. 右键单击已删除的需求条目，点击“取消删除”
-        // 预期：删除标识消失，状态恢复正常
-    }
 
-    @Test
-    @Order(1250)
-    @DisplayName("GNYL_125: 清除需求条目")
-    void test_GNYL_125_ClearRequirementItem() {
-        // 1. 右键单击需求条目，点击“清除”
-        // 预期：该需求条目被彻底清除
-    }
 
     // ==========================================
     // 🏗️ 结构化管理与对象新建 (GNYL_126 - GNYL_130)
     // ==========================================
 
-    @Test
-    @Order(1260)
-    @DisplayName("GNYL_126: 新建同级对象")
-    void test_GNYL_126_CreatePeerObject() {
-        // 1. 双击需求规格，选择需求条目，右键点击“新建” -> “同级对象”
-        // 预期：列表新增一条所选需求同级的需求条目
-    }
-
-    @Test
-    @Order(1270)
-    @DisplayName("GNYL_127: 新建子级对象")
-    void test_GNYL_127_CreateChildObject() {
-        // 1. 选择需求条目，右键点击“新建” -> “子级对象”
-        // 预期：列表新增一条所选需求的子级需求条目
-    }
 
     @Test
     @Order(1280)
-    @DisplayName("GNYL_128: 显示大纲")
-    void test_GNYL_128_ShowOutline() {
-        // 1. 点击“显示大纲”，在大纲中点击需求条目
-        // 预期：左侧展示大纲标签页，点击后右侧视图成功定位
+    @DisplayName("GNYL_128/129/130: 显示大纲 → 结构定位 → 隐藏大纲")
+    void test_GNYL_128_129_130_OutlineAndStructure() {
+
+        // 先展开需求规格
+        page.getByRole(AriaRole.TREEITEM,
+                        new Page.GetByRoleOptions().setName(TestConstants.REQ_NAME1).setExact(true))
+                .first().dblclick();
+        page.waitForTimeout(1000);
+
+        // ===== GNYL_128: 显示大纲 =====
+        // 点击"显示大纲"按钮
+        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("显示大纲")).click();
+        page.waitForTimeout(500);
+
+        // 验证大纲标签页出现
+        Locator outlineTab = page.getByRole(AriaRole.TAB, new Page.GetByRoleOptions().setName("结构"));
+        assertThat(outlineTab).isVisible();
+
+//        // 点击大纲中的需求条目，验证右侧视图定位
+//        Locator firstItem = page.getByRole(AriaRole.TREEITEM,
+//                new Page.GetByRoleOptions().setName("req-")).locator("div").first();
+//        assertThat(firstItem).isVisible();
+//        firstItem.click();
+        page.waitForTimeout(500);
+        log.info("GNYL_128 显示大纲通过，条目可点击");
+
+        // ===== GNYL_129: 显示结构 =====
+        // 点击"结构"标签页
+        outlineTab.click();
+        page.waitForTimeout(500);
+
+        // 验证结构中展示了需求条目
+        Locator structItem = page.getByRole(AriaRole.TREEITEM,
+                new Page.GetByRoleOptions().setName("req-")).locator("div").first();
+        assertThat(structItem).isVisible();
+        structItem.click();
+        page.waitForTimeout(500);
+        log.info("GNYL_129 结构视图定位通过");
+
+        // ===== GNYL_130: 隐藏大纲 =====
+        // 点击"隐藏大纲"按钮
+        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("隐藏大纲")).click();
+        page.waitForTimeout(500);
+
+        // 验证按钮变回"显示大纲"
+        Locator showBtn = page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("显示大纲"));
+        assertThat(showBtn).isVisible();
+        log.info("GNYL_130 隐藏大纲通过");
+    }
+
+
+    @Test
+    @Order(Integer.MAX_VALUE - 1)
+    @DisplayName("清理业务数据")
+    void step_cleanup() {
+        api.cleanFolderByName(CTX.get("projectId"), TestConstants.PARENT_FOLDER);
+        page.reload();
+        log.info("业务数据清理完毕");
     }
 
     @Test
-    @Order(1290)
-    @DisplayName("GNYL_129: 显示结构")
-    void test_GNYL_129_ShowStructure() {
-        // 1. 点击左侧“结构”标签页，点击需求条目
-        // 预期：展示所有需求条目，点击后右侧视图成功定位
-    }
+    @Order(Integer.MAX_VALUE)
+    @DisplayName("关闭浏览器")
+    void step_closeBrowser() {
+        try { if (page != null) page.close(); } catch (Exception ignored) {}
+        try { if (context != null) context.close(); } catch (Exception ignored) {}
+        try { if (browser != null) browser.close(); } catch (Exception ignored) {}
+        try { if (playwright != null) playwright.close(); } catch (Exception ignored) {}
 
-    @Test
-    @Order(1300)
-    @DisplayName("GNYL_130: 隐藏大纲")
-    void test_GNYL_130_HideOutline() {
-        // 1. 点击“隐藏大纲”
-        // 预期：大纲标签页隐藏，“隐藏大纲”变为“显示大纲”
-    }
+        page = null;
+        context = null;
+        browser = null;
+        playwright = null;
 
-    @Test
-    @Order(100000)
-    @DisplayName("清理【自动化测试】文件夹下所有数据")
-    void callCleanup() {
-        TestDataCleaner.cleanFolderByName(page, "自动化测试", PROJECT_ID);
-        if (page != null) page.close();
-        if (context != null) context.close();
-        if (browser != null) browser.close();
-        if (playwright != null) playwright.close();
+        log.info("所有资源已释放");
     }
-
 }

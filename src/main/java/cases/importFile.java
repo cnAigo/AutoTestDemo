@@ -8,18 +8,17 @@ public class importFile {
 
     @Test
     @Order(340)
-    @DisplayName("GNYL_034: 导入excel")
-    void test_GNYL_029_importExcel(){
-
-    }
-
-    @Test
-    @Order(380)
     @DisplayName("GNYL_038:下载Excel模版")
     void test_GNYL_038_downloadExcel(){
 
     }
 
+    @Test
+    @Order(380)
+    @DisplayName("GNYL_034: 导入excel")
+    void test_GNYL_029_importExcel(){
+
+    }
 
     @Test
     @Order(390)
