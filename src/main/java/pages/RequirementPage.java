@@ -7,6 +7,7 @@ import com.microsoft.playwright.TimeoutError;
 import com.microsoft.playwright.options.AriaRole;
 import com.microsoft.playwright.options.MouseButton;
 import com.microsoft.playwright.options.WaitForSelectorState;
+import config.TestConfig;
 import config.TestConstants;
 
 import java.util.regex.Pattern;
@@ -282,6 +283,41 @@ public class RequirementPage {
         } catch (Exception ignored) {}
 
         return "";
+    }
+
+    public void navigateToAttributeList() {
+        page.navigate(TestConfig.BASE_URL + "/#/SystemManagement");
+        page.waitForTimeout(2000);
+        page.getByRole(AriaRole.MENUITEM,
+                new Page.GetByRoleOptions().setName("合作区管理")).click();
+        page.waitForTimeout(1000);
+        page.getByRole(AriaRole.ROW,
+                        new Page.GetByRoleOptions().setName("test1"))
+                .getByRole(AriaRole.BUTTON).nth(3).click();
+        page.waitForTimeout(1000);
+    }
+
+    public void openAddDialog() {
+        page.getByRole(AriaRole.BUTTON,
+                new Page.GetByRoleOptions().setName("新增")).click();
+        page.waitForTimeout(500);
+    }
+
+    public void selectEnumType() {
+        page.getByLabel("添加参数").locator("div")
+                .filter(new Locator.FilterOptions()
+                        .setHasText(Pattern.compile("^请选择$")))
+                .nth(3).click();
+        page.waitForTimeout(300);
+        page.getByRole(AriaRole.OPTION,
+                new Page.GetByRoleOptions().setName("枚举")).click();
+        page.waitForTimeout(500);
+    }
+
+    public void closeDialog() {
+        page.getByRole(AriaRole.BUTTON,
+                new Page.GetByRoleOptions().setName("取消")).click();
+        page.waitForTimeout(300);
     }
 
 }
