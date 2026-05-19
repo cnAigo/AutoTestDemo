@@ -1,26 +1,79 @@
 package cases;
 
 
+
+import actions.ReqApiActions;
+import com.microsoft.playwright.Locator;
+import com.microsoft.playwright.Page;
+import com.microsoft.playwright.options.AriaRole;
+import com.microsoft.playwright.options.WaitForSelectorState;
+import config.TestConfig;
+import config.TestConstants;
+import base.BaseTest;
 import org.junit.jupiter.api.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.regex.Pattern;
+
+import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-public class AttributeTest {
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+public class AttributeTest extends BaseTest {
+
+
+    private static final Logger log = LoggerFactory.getLogger(AttributeTest.class);
+    private ReqApiActions api;
+
+    private static final java.util.Map<String, String> CTX = new java.util.LinkedHashMap<>();
+
+    @BeforeAll
+    public void initApi() {
+        api = new ReqApiActions(page.request());
+    }
+
+
     @Test
     @Order(1310)
     @DisplayName("GNYL_131: 自定义属性")
     void test_GNYL_131_CustomAttribute() {
-        // 1. 合作区管理 -> 设置属性 -> 新增
-        // 2. 输入英文名、中文名、类型、状态及描述
-        // 预期：提示“添加成功”，列表展示添加的参数信息
+        String nameEn = "auto_" + System.currentTimeMillis();
+        String resp = api.addCustomAttribute(nameEn, "自动化属性", "整型", TestConstants.PROJECT_ID);
+
+        Assertions.assertTrue(resp.contains("200"), "创建自定义属性失败: " + resp);
+        CTX.put("attrNameEn", nameEn);
+        log.info("GNYL_131 自定义属性创建成功！");
     }
+
+
 
     @Test
     @Order(1320)
     @DisplayName("GNYL_132: 修改属性")
     void test_GNYL_132_ModifyAttribute() {
-        // 1. 合作区管理 -> 设置属性 -> 编辑
-        // 预期：提示“修改成功”，列表展示修改后的信息
+        String nameEn = CTX.get("attrNameEn");
+        Assumptions.assumeTrue(nameEn != null && !nameEn.isEmpty(), "GNYL_131 未创建属性");
+
+        // 1. 查找刚创建的属性，拿到 id
+        String[] info = api.findCustomAttribute(nameEn, TestConstants.PROJECT_ID);
+        Assumptions.assumeTrue(info != null, "未查找到属性: " + nameEn);
+
+        // 2. 修改：改中文名和类型
+        String resp = api.updateCustomAttribute(
+                info[0],           // id
+                nameEn,            // nameEn 保持不变
+                "修改后的属性",     // 新中文名
+                "浮点",            // 新类型
+                info[1],           // createTime
+                info[2],           // creator
+                TestConstants.PROJECT_ID
+        );
+
+        Assertions.assertTrue(resp.contains("200"), "修改自定义属性失败: " + resp);
+        log.info("GNYL_132 修改自定义属性成功！");
     }
+
 
     @Test
     @Order(1330)
@@ -355,6 +408,23 @@ public class AttributeTest {
     @DisplayName("GNYL_185: 用户类属性人员移除")
     void test_GNYL_185() {
     }
+
+
+    @Test
+    @Order(Integer.MAX_VALUE)
+    @DisplayName("关闭浏览器")
+    void step_closeBrowser() {
+        try {
+            api.cleanFolderByName(TestConstants.PROJECT_ID, TestConstants.PARENT_FOLDER);
+            log.info("业务数据清理完毕");
+        } catch (Exception e) {
+            log.warn("清理业务数据异常: {}", e.getMessage());
+        }
+
+        BaseTest.closeAll();
+        log.info("所有资源已释放");
+    }
+
 
 
 }

@@ -257,10 +257,6 @@ public class ReqTest extends BaseTest {
 //    }
 
 
-
-
-
-
     // ==========================================
     // 📄 需求规格属性与文件管理 (GNYL_096 - GNYL_112)
     // ==========================================
@@ -636,8 +632,10 @@ public class ReqTest extends BaseTest {
         page.waitForTimeout(1000);
 
         // 2. 点击 "新建"（exact 匹配）
-        page.getByText("新建", new Page.GetByTextOptions().setExact(true)).click();
-        page.waitForTimeout(500);
+        for (int i = 0; i < 5; i++) {
+            page.getByText("新建", new Page.GetByTextOptions().setExact(true)).click();
+            page.waitForTimeout(500);
+        }
 
         // 3. 点击 "子级对象"
         page.locator("div").filter(new Locator.FilterOptions()
@@ -668,6 +666,7 @@ public class ReqTest extends BaseTest {
 
         // 2. 点击删除
         page.getByText("删除", new Page.GetByTextOptions().setExact(true)).click();
+        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("确定")).click();
         page.waitForTimeout(1000);
 
         log.info("GNYL_123 删除条目 {} 成功", subItem);
@@ -733,29 +732,4 @@ public class ReqTest extends BaseTest {
     }
 
 
-    @Test
-    @Order(Integer.MAX_VALUE - 1)
-    @DisplayName("清理业务数据")
-    void step_cleanup() {
-        api.cleanFolderByName(CTX.get("projectId"), TestConstants.PARENT_FOLDER);
-        page.reload();
-        log.info("业务数据清理完毕");
-    }
-
-    @Test
-    @Order(Integer.MAX_VALUE)
-    @DisplayName("关闭浏览器")
-    void step_closeBrowser() {
-        try { if (page != null) page.close(); } catch (Exception ignored) {}
-        try { if (context != null) context.close(); } catch (Exception ignored) {}
-        try { if (browser != null) browser.close(); } catch (Exception ignored) {}
-        try { if (playwright != null) playwright.close(); } catch (Exception ignored) {}
-
-        page = null;
-        context = null;
-        browser = null;
-        playwright = null;
-
-        log.info("所有资源已释放");
-    }
 }

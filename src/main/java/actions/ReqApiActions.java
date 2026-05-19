@@ -380,4 +380,96 @@ public class ReqApiActions {
     }
 
 
+
+    //========================= 合作区管理 ================================
+
+    /** 创建自定义属性 */
+    public String addCustomAttribute(String nameEn, String name, String type, String projectId) {
+        String payload = """
+        {
+            "nameEn": "%s",
+            "name": "%s",
+            "type": "%s",
+            "current": "1",
+            "valueRange": "",
+            "defaultValue": "",
+            "isMultiple": false,
+            "description": "自动化测试创建",
+            "businessDomain": "需求管理",
+            "objectType": "req",
+            "id": "",
+            "createTime": "",
+            "creator": "",
+            "modifier": "",
+            "projectId": "%s",
+            "usedColor": "#1e90ff",
+            "isUseDefaultValue": true,
+            "valueRangeMapping": []
+        }
+        """.formatted(nameEn, name, type, projectId);
+
+        return post("/erm/customAttribute/addCustomAttribute", payload);
+    }
+
+
+    /** 查询自定义属性列表，按英文名查找返回 id */
+    public String[] findCustomAttribute(String nameEn, String projectId) {
+        String resp = request.get(
+                TestConfig.API_PREFIX + "/erm/customAttribute/selectCustomAttributeList",
+                RequestOptions.create()
+                        .setQueryParam("projectId", projectId)
+                        .setQueryParam("businessDomain", "需求管理")
+                        .setQueryParam("objectType", "req")
+                        .setQueryParam("name", "")
+                        .setQueryParam("type", "")
+                        .setQueryParam("current", "")
+        ).text();
+
+        JsonObject root = JsonParser.parseString(resp).getAsJsonObject();
+        JsonArray data = root.getAsJsonArray("data");
+
+        for (JsonElement el : data) {
+            JsonObject obj = el.getAsJsonObject();
+            if (nameEn.equals(obj.get("nameEn").getAsString())) {
+                return new String[]{
+                        obj.get("id").getAsString(),
+                        obj.get("createTime").getAsString(),
+                        obj.get("creator").getAsString()
+                };
+            }
+        }
+        return null;
+    }
+
+    /** 修改自定义属性 */
+    public String updateCustomAttribute(String id, String nameEn, String name, String type,
+                                        String createTime, String creator, String projectId) {
+        String payload = """
+        {
+            "nameEn": "%s",
+            "name": "%s",
+            "type": "%s",
+            "current": "1",
+            "valueRange": "",
+            "defaultValue": "",
+            "isMultiple": false,
+            "description": "update text",
+            "businessDomain": "需求管理",
+            "objectType": "req",
+            "id": "%s",
+            "createTime": "%s",
+            "creator": "%s",
+            "modifier": "admin",
+            "projectId": "%s",
+            "usedColor": "#1e90ff",
+            "isUseDefaultValue": true,
+            "valueRangeMapping": []
+        }
+        """.formatted(nameEn, name, type, id, createTime, creator, projectId);
+
+        return post("/erm/customAttribute/updateCustomAttribute", payload);
+    }
+
+
+
 }

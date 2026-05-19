@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.5</version> <relativePath/>
+        <version>3.2.5</version> <relativePath/>
     </parent>
 
     <groupId>org.example</groupId>
@@ -39,20 +39,16 @@
             <artifactId>janino</artifactId>
         </dependency>
 
-        <!-- JUnit 5 Jupiter -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>5.10.2</version>
-            <scope>test</scope>
         </dependency>
 
-        <!-- JUnit Platform Launcher -->
         <dependency>
             <groupId>org.junit.platform</groupId>
             <artifactId>junit-platform-launcher</artifactId>
             <version>1.10.2</version>
-            <scope>test</scope>
         </dependency>
 
 
@@ -82,8 +78,9 @@
                     <runOrder>alphabetical</runOrder>
                     <includes>
                         <include>**/RequirementTest.java</include>
+                        <include>**/importFile.java</include>
                         <include>**/ReqTest.java</include>
-                        <include>**/CleanupTest.java</include>
+                        <include>**/AttributeTest.java</include>
                     </includes>
                 </configuration>
             </plugin>
