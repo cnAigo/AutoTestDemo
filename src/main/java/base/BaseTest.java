@@ -6,9 +6,10 @@ import org.junit.jupiter.api.TestInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Paths;
+
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class BaseTest {
-    // 1. 🌟 加上 static，让所有继承它的测试类都共享这一套实例
     protected static Playwright playwright;
     protected static Browser browser;
     protected static BrowserContext context;
@@ -16,9 +17,10 @@ public class BaseTest {
 
     private static final Logger log = LoggerFactory.getLogger(BaseTest.class);
 
+    private static final String AUTH_STATE_PATH = "auth.json";
+
     @BeforeAll
     public void setup() {
-        // 2. 🌟 核心拦截：如果 page 已经有值了，说明前面的测试类已经开过浏览器了，直接 return 退出！
         if (page != null) {
             return;
         }
@@ -33,10 +35,10 @@ public class BaseTest {
                     .setViewportSize(1920, 1080)
                     .setIgnoreHTTPSErrors(true);
 
-            java.nio.file.Path authPath = java.nio.file.Paths.get("auth.json");
+            java.nio.file.Path authPath = Paths.get(AUTH_STATE_PATH);
             if (java.nio.file.Files.exists(authPath)) {
-                contextOptions.setStorageStatePath(authPath); // 加载登录状态
-                log.info("🚀 检测到 auth.json，加载 Session...");
+                contextOptions.setStorageStatePath(authPath);
+                log.info("Detected auth.json, loading session...");
             }
 
             context = browser.newContext(contextOptions);
@@ -44,11 +46,10 @@ public class BaseTest {
             page.setDefaultTimeout(30000);
 
         } catch (Exception e) {
-            System.err.println("[ERROR] Setup 失败！" + e.getMessage());
+            log.error("Setup failed: {}", e.getMessage());
             throw e;
         }
     }
-
 
     public static void closeAll() {
         try { if (page != null) page.close(); } catch (Exception ignored) {}
@@ -61,5 +62,4 @@ public class BaseTest {
         browser = null;
         playwright = null;
     }
-
 }
