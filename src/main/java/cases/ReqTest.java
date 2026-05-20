@@ -273,9 +273,9 @@ public class ReqTest extends BaseTest {
 
         Locator descArea = page.getByPlaceholder("可编辑描述");
 
-        String validDesc = "1.在"合作区管理"列表选择合作区，点击"设置属性"\n" +
-                "2.勾选一个或多个属性复选框，点击列表上方"删除"按钮\n" +
-                "3.在二次确认框，点击"确定"按钮";
+        String validDesc = "1.在合作区管理列表选择合作区，点击设置属性\n" +
+                "2.勾选一个或多个属性复选框，点击列表上方删除按钮\n" +
+                "3.在二次确认框，点击确定按钮";
         descArea.click();
         descArea.press("Control+a");
         descArea.fill(validDesc);
