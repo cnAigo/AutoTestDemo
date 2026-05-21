@@ -2,9 +2,9 @@ package config;
 
 public class TestConstants {
     // ======================== 项目 ========================
-    public static final String PROJECT_NAME = "test1";
+    public static final String PROJECT_NAME = "asd";
 
-    public static final String PROJECT_ID = "2029043043216191488";
+    public static final String PROJECT_ID = "2001487656716251136";
 
     // ======================== 文件夹名称 ========================
     public static final String ROOT_NODE = "需求（根节点）";

@@ -4,7 +4,7 @@ public class TestConfig {
 
     public static final String BASE_URL = System.getenv("TEST_BASE_URL") != null
             ? System.getenv("TEST_BASE_URL")
-            : "https://192.168.0.222:8088";
+            : "https://192.168.6.176:8088";
 
     public static final String LOGIN_URL = BASE_URL + "/#/login";
     public static final String REQUIREMENT_URL = BASE_URL + "/#/RequirementManagement";

@@ -33,6 +33,10 @@ public class ReqApiActions {
     private static final String ERM_ATTR_SELECT = "/erm/customAttribute/selectCustomAttributeList";
     private static final String ERM_ATTR_UPDATE = "/erm/customAttribute/updateCustomAttribute";
     private static final String ERM_SEARCH_PROJECT = "/common/search/searchProjectByUser";
+    private static final String ERM_IMPORT_EXCEL = "/erm/import/importReqSpecification";
+    private static final String ERM_ATTR_DELETE = "/erm/customAttribute/deleteCustomAttributes";
+    private static final String ERM_ATTR_PUBLISH = "/erm/customAttribute/publishCustomAttribute";
+    private static final String ERM_SEARCH_USER = "/common/search/searchUserByUser";
 
     private static final String PARENT_TYPE_FOLDER = "reqSpeFolder";
     private static final String PARENT_TYPE_PROJECT = "project";
@@ -386,6 +390,94 @@ public class ReqApiActions {
                 """.formatted(nameEn, name, type, id, createTime, creator, projectId);
 
         return post(ERM_ATTR_UPDATE, payload);
+    }
+
+    public String importReqSpecification(String projectId, String parentId, String reqSpecName, String dataJson) {
+        String payload = """
+                {
+                    "projectId": "%s",
+                    "reqSpeParentId": "%s",
+                    "reqSpeName": "%s",
+                    "dataJson": %s
+                }
+                """.formatted(projectId, parentId, reqSpecName, dataJson);
+        return post(ERM_IMPORT_EXCEL, payload);
+    }
+
+    public String deleteCustomAttribute(String id) {
+        String payload = """
+                {"ids": ["%s"]}
+                """.formatted(id);
+        return post(ERM_ATTR_DELETE, payload);
+    }
+
+    public String getCustomAttributeList(String projectId) {
+        APIResponse response = request.get(
+                TestConfig.API_PREFIX + ERM_ATTR_SELECT,
+                RequestOptions.create()
+                        .setQueryParam("projectId", projectId)
+                        .setQueryParam("businessDomain", "")
+                        .setQueryParam("objectType", "")
+                        .setQueryParam("name", "")
+                        .setQueryParam("type", "")
+                        .setQueryParam("current", "")
+        );
+        return response.text();
+    }
+
+    public boolean isDataEmpty(String resp) {
+        JsonObject root = JsonParser.parseString(resp).getAsJsonObject();
+        JsonArray data = root.getAsJsonArray("data");
+        return data == null || data.size() == 0;
+    }
+
+    public String searchCustomAttribute(String projectId, String businessDomain, String objectType,
+                                        String name, String type, String current) {
+        APIResponse response = request.get(
+                TestConfig.API_PREFIX + ERM_ATTR_SELECT,
+                RequestOptions.create()
+                        .setQueryParam("projectId", projectId)
+                        .setQueryParam("businessDomain", businessDomain != null ? businessDomain : "")
+                        .setQueryParam("objectType", objectType != null ? objectType : "")
+                        .setQueryParam("name", name != null ? name : "")
+                        .setQueryParam("type", type != null ? type : "")
+                        .setQueryParam("current", current != null ? current : "")
+        );
+        return response.text();
+    }
+
+    public String publishCustomAttribute(String id, String projectId) {
+        String payload = """
+                {
+                    "id": "%s",
+                    "projectId": "%s"
+                }
+                """.formatted(id, projectId);
+        return post(ERM_ATTR_PUBLISH, payload);
+    }
+
+    public String batchDeleteCustomAttributes(String... ids) {
+        StringBuilder jsonIds = new StringBuilder("[");
+        for (int i = 0; i < ids.length; i++) {
+            if (i > 0) jsonIds.append(",");
+            jsonIds.append("\"").append(ids[i]).append("\"");
+        }
+        jsonIds.append("]");
+        String payload = "{\"ids\": " + jsonIds.toString() + "}";
+        return post(ERM_ATTR_DELETE, payload);
+    }
+
+    public String searchUser(String keyword) {
+        String payload = """
+                {"userName": "%s"}
+                """.formatted(keyword);
+        APIResponse response = request.post(
+                TestConfig.API_PREFIX + ERM_SEARCH_USER,
+                RequestOptions.create()
+                        .setHeader("Content-Type", "application/json")
+                        .setData(payload)
+        );
+        return response.text();
     }
 
     private String post(String endpoint, String payload) {

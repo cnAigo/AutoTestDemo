@@ -143,7 +143,7 @@ public class RequirementTest extends BaseTest {
         CTX.put("reqId1", docId1);
         log.info("GNYL_017 文档1 ID: {}, 名称: {}", docId1, TestConstants.REQ_NAME1);
 
-        try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+        try { Thread.sleep(3000); } catch (InterruptedException ignored) {}
 
         String docId2 = api.createDocument(getProjectId(), parentId);
         Assertions.assertFalse(docId2.isEmpty(), "未能获取到文档2的ID");
